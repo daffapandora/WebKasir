@@ -1,16 +1,31 @@
 <?php
+
 namespace App\Models;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Customer extends Model
 {
-    use HasUuids;
-    protected $fillable = ['tenant_id', 'name', 'phone', 'email', 'total_points', 'total_spent', 'visit_count', 'last_visit_at'];
-    protected $casts = ['total_spent' => 'decimal:2', 'last_visit_at' => 'datetime'];
-    public function tenant(): BelongsTo { return $this->belongsTo(Tenant::class); }
-    public function transactions(): HasMany { return $this->hasMany(Transaction::class); }
-    public function loyaltyPoints(): HasMany { return $this->hasMany(LoyaltyPoint::class); }
+    protected $fillable = [
+        'name', 'phone', 'email', 'address', 'membership_tier',
+        'loyalty_points', 'total_spent', 'total_transactions', 'last_visit', 'is_active'
+    ];
+
+    protected $casts = [
+        'loyalty_points' => 'integer',
+        'total_spent' => 'integer',
+        'total_transactions' => 'integer',
+        'last_visit' => 'datetime',
+        'is_active' => 'boolean',
+    ];
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    public function loyaltyTransactions()
+    {
+        return $this->hasMany(LoyaltyTransaction::class);
+    }
 }

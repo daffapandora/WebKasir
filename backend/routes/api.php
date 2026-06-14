@@ -1,72 +1,104 @@
 <?php
-// ============================================
-// KasirPro — API Routes (v1)
-// ============================================
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\SyncController;
-use App\Http\Controllers\Api\V1\TransactionController;
-use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Branch\BranchController;
+use App\Http\Controllers\Product\ProductController;
+use App\Http\Controllers\Inventory\InventoryController;
+use App\Http\Controllers\Inventory\IngredientController;
+use App\Http\Controllers\Inventory\HppController;
+use App\Http\Controllers\Inventory\WasteLogController;
+use App\Http\Controllers\Transaction\TransactionController;
+use App\Http\Controllers\Customer\CustomerController;
+use App\Http\Controllers\Employee\EmployeeController;
+use App\Http\Controllers\Report\ReportController;
+use App\Http\Controllers\Discount\DiscountController;
+use App\Http\Controllers\Loyalty\LoyaltyController;
+use App\Http\Controllers\Supplier\SupplierController;
+use App\Http\Controllers\Tax\TaxController;
+use App\Http\Controllers\Setting\SettingController;
+use App\Http\Controllers\AccessControl\AccessControlController;
 
-Route::prefix('v1')->group(function () {
-    
-    // ---- Public Routes ----
-    Route::post('/auth/login', [AuthController::class, 'login']);
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
 
-    // ---- Protected Routes ----
-    Route::middleware('auth:sanctum')->group(function () {
-        
-        // Auth
-        Route::get('/auth/me', [AuthController::class, 'me']);
-        Route::post('/auth/logout', [AuthController::class, 'logout']);
-        Route::post('/auth/refresh', [AuthController::class, 'refresh']);
+// Public routes
+Route::post('/login', [AuthController::class, 'login']);
 
-        // ---- Tenant Scoped Routes ----
-        Route::middleware('tenant')->group(function () {
+// Protected routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/lock', [AuthController::class, 'lock']);
+    Route::post('/unlock', [AuthController::class, 'unlock']);
+    Route::post('/verify-pin', [AuthController::class, 'verifyAdminPin']);
 
-            // Sync Endpoints (Used by the offline-first POS client)
-            Route::prefix('sync')->group(function () {
-                // Pull master data (Products, Categories, etc) down to client Dexie DB
-                Route::get('/master-data', [SyncController::class, 'pullMasterData']);
-                
-                // Push offline transactions up to the server
-                Route::post('/transactions', [SyncController::class, 'pushTransactions']);
-            });
+    // Admin & Cashier common route: branches
+    Route::get('/branches', [BranchController::class, 'index']);
 
-            // Cashier Terminal API
-            Route::prefix('cashier')->group(function () {
-                
-                // Products (Product catalog, search, barcode lookup)
-                Route::prefix('products')->group(function () {
-                    Route::get('/', [ProductController::class, 'index']); // Search/filter
-                    Route::get('/low-stock', [ProductController::class, 'lowStock']); // Low stock alerts
-                    Route::post('/barcode-search', [ProductController::class, 'searchByBarcode']); // Quick lookup
-                    Route::get('/{product}', [ProductController::class, 'show']); // Product details
-                });
-
-                // Transactions (Checkout, void, hold, resume)
-                Route::prefix('transactions')->group(function () {
-                    Route::post('/', [TransactionController::class, 'store']); // Checkout
-                    Route::get('/', [TransactionController::class, 'index']); // List recent
-                    Route::get('/{transaction}', [TransactionController::class, 'show']); // View receipt
-                    Route::post('/{transaction}/void', [TransactionController::class, 'void']); // Void (PIN required)
-                    Route::post('/{transaction}/hold', [TransactionController::class, 'hold']); // Hold
-                    Route::post('/{transaction}/resume', [TransactionController::class, 'resume']); // Resume
-                });
-            });
-
-            // Role Protected Examples (For full dashboard management - to be implemented)
-            Route::middleware('role:owner,manager')->group(function () {
-                // Future: reporting, analytics
-                // Route::apiResource('reports', ReportController::class);
-            });
-
-            Route::middleware('role:owner')->group(function () {
-                // Future: user management, system config
-                // Route::apiResource('users', UserController::class);
-            });
-
-        });
+    // POS cashier specific
+    Route::prefix('pos')->group(function () {
+        Route::post('/transactions', [TransactionController::class, 'store']);
+        Route::get('/transactions/history', [TransactionController::class, 'posHistory']);
+        Route::post('/shifts/open', [TransactionController::class, 'openShift']);
+        Route::post('/shifts/close', [TransactionController::class, 'closeShift']);
+        Route::get('/shifts/current', [TransactionController::class, 'currentShift']);
     });
+
+    // Products & Inventory (existing)
+    Route::apiResource('products', ProductController::class);
+    Route::post('/products/{product}/stock-adjustment', [InventoryController::class, 'adjustStock']);
+    Route::get('/inventory/movements', [InventoryController::class, 'movements']);
+    Route::get('/inventory/low-stock', [InventoryController::class, 'lowStockAlerts']);
+
+    // ── Ingredients (Bahan Baku) ──────────────────────────────────
+    Route::apiResource('ingredients', IngredientController::class);
+    Route::post('/ingredients/{ingredient}/stock-in', [IngredientController::class, 'stockIn']);
+    Route::post('/restock-drafts/generate', [IngredientController::class, 'generateRestockDraft']);
+
+    // ── HPP & Recipe (Resep Produk) ───────────────────────────────
+    Route::get('/products/{product}/hpp', [HppController::class, 'show']);
+    Route::post('/products/{product}/hpp/recalculate', [HppController::class, 'recalculate']);
+    Route::post('/hpp/recalculate-all', [HppController::class, 'recalculateAll']);
+    Route::put('/products/{product}/recipe', [HppController::class, 'upsertRecipe']);
+
+    // ── Waste Logs (Log Limbah) ───────────────────────────────────
+    Route::get('/waste-logs/analytics', [WasteLogController::class, 'analytics']); // sebelum resource agar tidak tertimpa
+    Route::apiResource('waste-logs', WasteLogController::class)->only(['index', 'store', 'show']);
+
+    // CRM, Loyalty & Discounts
+    Route::apiResource('customers', CustomerController::class);
+    Route::get('/customers/{customer}/purchase-history', [CustomerController::class, 'purchaseHistory']);
+    Route::apiResource('discounts', DiscountController::class);
+    Route::get('/loyalty/config', [LoyaltyController::class, 'getConfig']);
+    Route::post('/loyalty/config', [LoyaltyController::class, 'updateConfig']);
+    Route::get('/loyalty/ledger', [LoyaltyController::class, 'ledger']);
+    Route::post('/loyalty/adjust', [LoyaltyController::class, 'adjustPoints']);
+
+    // Suppliers & Purchasing
+    Route::apiResource('suppliers', SupplierController::class);
+    Route::apiResource('purchase-orders', SupplierController::class); // Simple mock
+    
+    // Tax Config
+    Route::get('/tax-configs', [TaxController::class, 'index']);
+    Route::put('/tax-configs/{tax}', [TaxController::class, 'update']);
+
+    // Reports & Dashboard
+    Route::get('/dashboard/kpis', [ReportController::class, 'kpis']);
+    Route::get('/reports/sales-summary', [ReportController::class, 'salesSummary']);
+    Route::get('/reports/top-products', [ReportController::class, 'topProducts']);
+    Route::get('/reports/payment-methods', [ReportController::class, 'paymentMethods']);
+    Route::get('/reports/hourly-sales', [ReportController::class, 'hourlySales']);
+
+    // Settings & Access Control
+    Route::get('/settings', [SettingController::class, 'getSettings']);
+    Route::post('/settings', [SettingController::class, 'updateSettings']);
+    Route::get('/access-control/permissions', [AccessControlController::class, 'getPermissions']);
+    Route::post('/access-control/permissions', [AccessControlController::class, 'updatePermissions']);
+
+    // Admin Employee management
+    Route::apiResource('employees', EmployeeController::class);
 });

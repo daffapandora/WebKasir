@@ -2,50 +2,43 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasUuids, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     protected $fillable = [
-        'tenant_id', 'outlet_id', 'name', 'email', 'password',
-        'pin_hash', 'role', 'is_active', 'last_login_at',
+        'name',
+        'email',
+        'password',
+        'role',
+        'branch_id',
+        'is_active',
     ];
 
-    protected $hidden = ['password', 'pin_hash', 'remember_token'];
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
 
     protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
         'is_active' => 'boolean',
-        'last_login_at' => 'datetime',
     ];
 
-    public function tenant(): BelongsTo
+    public function branch()
     {
-        return $this->belongsTo(Tenant::class);
+        return $this->belongsTo(Branch::class);
     }
 
-    public function outlet(): BelongsTo
+    public function shifts()
     {
-        return $this->belongsTo(Outlet::class);
+        return $this->hasMany(Shift::class, 'cashier_id');
     }
-
-    public function shifts(): HasMany
-    {
-        return $this->hasMany(Shift::class);
-    }
-
-    public function transactions(): HasMany
-    {
-        return $this->hasMany(Transaction::class);
-    }
-
-    public function isOwner(): bool { return $this->role === 'owner'; }
-    public function isManager(): bool { return $this->role === 'manager'; }
-    public function isCashier(): bool { return $this->role === 'cashier'; }
-    public function hasManagerAccess(): bool { return in_array($this->role, ['owner', 'manager']); }
 }

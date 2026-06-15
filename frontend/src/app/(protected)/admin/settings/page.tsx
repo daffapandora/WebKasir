@@ -22,7 +22,7 @@ export default function SettingsPage() {
   const [storePhone, setStorePhone] = useState('021-5551234');
   const [receiptFooter, setReceiptFooter] = useState('Terima kasih atas kunjungan Anda!');
 
-  // A1: Backup state
+  // Backup states
   const [backupLoading, setBackupLoading] = useState(false);
   const [restoreLoading, setRestoreLoading] = useState(false);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
@@ -134,7 +134,7 @@ export default function SettingsPage() {
         addToast('success', 'Bluetooth Terhubung', `Terhubung ke ${deviceName}`);
       } else {
         // Fallback simulation for unsupported systems
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 2000));
         const simulatedName = `BT-Printer-${Math.floor(Math.random() * 900 + 100)}`;
         setBtDevices([{ name: simulatedName, id: 'mock-bt-id', connected: true }]);
         setConnectedBt(simulatedName);
@@ -152,7 +152,6 @@ export default function SettingsPage() {
   const handleLanPrintTest = async () => {
     setLanTesting(true);
     try {
-      // Send raw TCP payload simulator
       await new Promise(r => setTimeout(r, 1500));
       addToast('success', 'Uji Cetak Terkirim', `Perintah cetak dikirim ke printer LAN di ${lanIp}:${lanPort}`);
     } catch (err: any) {
@@ -205,7 +204,7 @@ export default function SettingsPage() {
     addToast('success', 'Pengaturan disimpan');
   };
 
-  // Firestore backup handlers
+  // Backup & Restore
   const handleBackup = async () => {
     setBackupLoading(true);
     try {
@@ -265,357 +264,403 @@ export default function SettingsPage() {
       {/* Header bar */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Pengaturan Sistem</h1>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Pengaturan</h1>
           <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            Konfigurasi toko, perangkat keras, integrasi pembayaran, dan sinkronisasi offline.
+            Konfigurasi umum aplikasi, integrasi pembayaran, perangkat kasir, dan sinkronisasi data.
           </p>
         </div>
-        <button onClick={handleSave} className="btn btn-primary shadow-sm" disabled={saving}>
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
+        <button onClick={handleSave} className="btn btn-primary shadow-md flex items-center gap-2 hover:opacity-90 transition-opacity" disabled={saving}>
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan Pengaturan
         </button>
       </div>
 
       {/* Grid Layout of configuration blocks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        
+        {/* LEFT COLUMN (2/3 width on wide screens) */}
+        <div className="lg:col-span-2 space-y-6">
 
-        {/* SECTION 1: PROFIL TOKO & STRUK */}
-        <div className="card p-5 space-y-4">
-          <h3 className="font-semibold text-lg flex items-center gap-2 border-b pb-2" style={{ color: 'var(--color-text-primary)' }}>
-            <Store className="w-5 h-5 text-indigo-500" /> Profil Toko & Struk
-          </h3>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Nama Toko</label>
-              <input type="text" value={storeName} onChange={e => setStoreName(e.target.value)} className="input" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Telepon</label>
-              <input type="text" value={storePhone} onChange={e => setStorePhone(e.target.value)} className="input" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Alamat Toko</label>
-              <textarea value={storeAddress} onChange={e => setStoreAddress(e.target.value)} className="input" rows={2} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Footer Struk</label>
-              <input type="text" value={receiptFooter} onChange={e => setReceiptFooter(e.target.value)} className="input" />
-            </div>
-          </div>
-
-          {/* Struct Logo Upload */}
-          <div className="pt-2">
-            <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--color-text-secondary)' }}>Logo Struk Cetak</label>
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 border rounded-lg overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-800">
-                {logoPreview ? (
-                  <img src={logoPreview} alt="Preview Logo" className="object-contain w-full h-full" />
-                ) : (
-                  <Printer className="w-8 h-8 text-gray-300" />
-                )}
-              </div>
-              <div className="flex-1">
-                <input 
-                  type="file" 
-                  accept="image/png, image/jpeg, image/jpg" 
-                  onChange={handleLogoChange}
-                  className="hidden" 
-                  id="receipt-logo-file" 
-                />
-                <label 
-                  htmlFor="receipt-logo-file" 
-                  className="btn btn-outline cursor-pointer py-2 px-3 text-xs flex items-center gap-1.5 w-fit"
-                >
-                  <Upload className="w-3.5 h-3.5" /> Pilih File Gambar
-                </label>
-                <p className="text-[10px] mt-1 text-gray-400">Format yang didukung: PNG, JPG, JPEG. Ukuran maks 500KB.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 2: PORTAL PEMBAYARAN & API INTEGRATION */}
-        <div className="card p-5 space-y-4">
-          <h3 className="font-semibold text-lg flex items-center gap-2 border-b pb-2" style={{ color: 'var(--color-text-primary)' }}>
-            <CreditCard className="w-5 h-5 text-emerald-500" /> Portal Pembayaran (EDC & QRIS)
-          </h3>
-          
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Integrasi Mesin EDC</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>URL API Terminal</label>
-                <input type="text" value={edcApiUrl} onChange={e => setEdcApiUrl(e.target.value)} className="input text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Kunci API Kredensial</label>
-                <input type="password" value={edcApiKey} onChange={e => setEdcApiKey(e.target.value)} className="input text-sm" />
-              </div>
-            </div>
-
-            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 pt-2">Layanan QRIS Dinamis</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Merchant ID (MID)</label>
-                <input type="text" value={qrisMerchantId} onChange={e => setQrisMerchantId(e.target.value)} className="input text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Terminal ID (TID)</label>
-                <input type="text" value={qrisTerminalId} onChange={e => setQrisTerminalId(e.target.value)} className="input text-sm" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 3: LOKALISASI & ALERTS */}
-        <div className="card p-5 space-y-4">
-          <h3 className="font-semibold text-lg flex items-center gap-2 border-b pb-2" style={{ color: 'var(--color-text-primary)' }}>
-            <Globe className="w-5 h-5 text-amber-500" /> Lokalisasi & Notifikasi
-          </h3>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Zona Waktu Operasional</label>
-              <select value={timezone} onChange={e => setTimezone(e.target.value)} className="input py-2">
-                <option value="Asia/Jakarta">WIB - Asia/Jakarta (GMT+7)</option>
-                <option value="Asia/Makassar">WITA - Asia/Makassar (GMT+8)</option>
-                <option value="Asia/Jayapura">WIT - Asia/Jayapura (GMT+9)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--color-text-secondary)' }}>Batas Minimum Stok Kritis</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  value={minStockLimit} 
-                  onChange={e => setMinStockLimit(parseInt(e.target.value) || 0)} 
-                  className="input pr-10" 
-                  min="0"
-                />
-                <span className="absolute right-3 top-2.5 text-xs text-gray-400 font-medium">Unit</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 p-3 rounded-lg flex items-start gap-2.5">
-            <BellRing className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-              Batas minimum stok kritis digunakan untuk mengirim notifikasi peringatan dini di dasbor inventori ketika kuantitas bahan baku berada di bawah angka penentu di atas.
-            </p>
-          </div>
-        </div>
-
-        {/* SECTION 4: MODUL SINKRONISASI DATA OFFLINE */}
-        <div className="card p-5 space-y-4">
-          <h3 className="font-semibold text-lg flex items-center gap-2 border-b pb-2" style={{ color: 'var(--color-text-primary)' }}>
-            <Database className="w-5 h-5 text-blue-500" /> Sinkronisasi Transaksi Offline-First
-          </h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Status Jaringan */}
-            <div className="border rounded-xl p-3 flex flex-col justify-between h-20 bg-gray-50 dark:bg-gray-800/40">
-              <span className="text-xs font-semibold text-gray-400">Status Jaringan</span>
-              <div className="flex items-center gap-1.5 mt-1">
-                {isOnline ? (
-                  <>
-                    <Wifi className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Tersambung (Online)</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="w-4 h-4 text-red-500" />
-                    <span className="text-sm font-bold text-red-600 dark:text-red-400">Terputus (Offline)</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Antrean Lokal */}
-            <div className="border rounded-xl p-3 flex flex-col justify-between h-20 bg-gray-50 dark:bg-gray-800/40">
-              <span className="text-xs font-semibold text-gray-400">Antrean Offline</span>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className={`text-xl font-black ${unsyncedCount > 0 ? 'text-amber-500' : 'text-gray-500'}`}>
-                  {unsyncedCount}
-                </span>
-                <span className="text-[10px] text-gray-400 font-medium">Transaksi Tertunda</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button 
-              onClick={handleManualSync} 
-              disabled={syncing || !isOnline} 
-              className="btn btn-primary flex-1 py-2 text-xs flex items-center justify-center gap-2"
-            >
-              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              {syncing ? 'Menyelaraskan...' : 'Sinkronkan Sekarang'}
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 pt-1">
-            <Clock className="w-3.5 h-3.5" />
-            <span>Terakhir disinkronkan: </span>
-            <span className="font-semibold">
-              {lastSyncTime ? (
-                new Date(lastSyncTime).toLocaleDateString('id-ID', {
-                  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
-                })
-              ) : 'Belum pernah'}
-            </span>
-          </div>
-        </div>
-
-        {/* SECTION 5: MODUL PERANGKAT KERAS KASIR (BLUETOOTH & LAN) */}
-        <div className="card p-5 lg:col-span-2 space-y-5">
-          <h3 className="font-semibold text-lg flex items-center gap-2 border-b pb-2" style={{ color: 'var(--color-text-primary)' }}>
-            <Cpu className="w-5 h-5 text-rose-500" /> Perangkat Keras Kasir (Printer & Drawer)
-          </h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* CARD 1: PROFIL TOKO */}
+          <div className="card p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-5">
+            <h3 className="font-semibold text-base flex items-center gap-2 border-b pb-3" style={{ color: 'var(--color-text-primary)' }}>
+              <Store className="w-5 h-5 text-indigo-500" /> Profil Toko & Informasi Cetak
+            </h3>
             
-            {/* Koneksi Printer Bluetooth */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-gray-400 flex items-center gap-1.5">
-                  <Bluetooth className="w-4 h-4 text-blue-500" /> Printer Bluetooth (Web Bluetooth)
-                </h4>
-                <div className="flex items-center gap-1.5">
-                  <span className={`w-2.5 h-2.5 rounded-full ${connectedBt ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                  <span className="text-xs font-semibold text-gray-500">
-                    {connectedBt ? 'Tersambung' : 'Terputus'}
-                  </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-gray-500 dark:text-gray-400">Nama Toko</label>
+                <input type="text" value={storeName} onChange={e => setStoreName(e.target.value)} className="input" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-gray-500 dark:text-gray-400">Telepon Toko</label>
+                <input type="text" value={storePhone} onChange={e => setStorePhone(e.target.value)} className="input" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold mb-1.5 text-gray-500 dark:text-gray-400">Alamat Lengkap</label>
+                <textarea value={storeAddress} onChange={e => setStoreAddress(e.target.value)} className="input" rows={2} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold mb-1.5 text-gray-500 dark:text-gray-400">Pesan Kaki Struk (Receipt Footer)</label>
+                <input type="text" value={receiptFooter} onChange={e => setReceiptFooter(e.target.value)} className="input text-sm" />
+              </div>
+            </div>
+
+            {/* Receipt Logo Dropper */}
+            <div className="pt-2">
+              <label className="block text-xs font-semibold mb-2.5 text-gray-500 dark:text-gray-400">Logo Struk Cetak</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                <div className="relative group w-24 h-24 border border-dashed border-gray-300 dark:border-gray-700 rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-850 flex-shrink-0 transition-all duration-350 hover:border-indigo-500 hover:bg-indigo-500/5">
+                  {logoPreview ? (
+                    <>
+                      <img src={logoPreview} alt="Preview Logo" className="object-contain w-full h-full p-2 transition-transform duration-300 group-hover:scale-105" />
+                      <button 
+                        type="button" 
+                        onClick={() => { setLogoFile(null); setLogoPreview(null); }}
+                        className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-[11px] font-bold"
+                      >
+                        Hapus Logo
+                      </button>
+                    </>
+                  ) : (
+                    <Printer className="w-8 h-8 text-gray-300 group-hover:text-indigo-400 transition-colors" />
+                  )}
+                </div>
+                
+                <div className="sm:col-span-2">
+                  <input 
+                    type="file" 
+                    accept="image/png, image/jpeg, image/jpg" 
+                    onChange={handleLogoChange}
+                    className="hidden" 
+                    id="receipt-logo-file" 
+                  />
+                  <label 
+                    htmlFor="receipt-logo-file" 
+                    className="btn btn-outline cursor-pointer py-2 px-4 text-xs font-semibold flex items-center gap-2 w-fit bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 border-gray-300 dark:border-gray-700 shadow-sm"
+                  >
+                    <Upload className="w-4 h-4 text-gray-500" /> Pilih Gambar Logo
+                  </label>
+                  <p className="text-[10px] mt-2 text-gray-400 leading-normal">
+                    Format gambar yang didukung: PNG, JPG, JPEG. Maksimum file size 500KB. Logo akan tampil di bagian atas struk kasir.
+                  </p>
                 </div>
               </div>
-              
-              <button 
-                onClick={handleBluetoothScan} 
-                disabled={btScanning} 
-                className="btn btn-outline w-full py-2.5 flex items-center justify-center gap-2 text-xs font-medium"
-              >
-                {btScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bluetooth className="w-4 h-4" />}
-                Pindai Perangkat Bluetooth
-              </button>
+            </div>
+          </div>
 
-              {btDevices.length > 0 && (
-                <div className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800/30 text-xs">
-                  <p className="font-semibold text-gray-400 mb-2">Daftar Perangkat Taut:</p>
-                  <div className="space-y-1.5">
-                    {btDevices.map((d) => (
-                      <div key={d.id} className="flex justify-between items-center py-1">
-                        <span className="font-medium text-gray-600 dark:text-gray-300">{d.name}</span>
-                        <span className="bg-emerald-100 text-emerald-800 text-[9px] font-bold px-2 py-0.5 rounded">Connected</span>
-                      </div>
-                    ))}
+          {/* CARD 2: PERANGKAT KERAS KASIR */}
+          <div className="card p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-5">
+            <h3 className="font-semibold text-base flex items-center gap-2 border-b pb-3" style={{ color: 'var(--color-text-primary)' }}>
+              <Cpu className="w-5 h-5 text-rose-500" /> Modul Perangkat Keras Kasir (Printer & Drawer)
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Bluetooth Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                    <Bluetooth className="w-4 h-4 text-blue-500 animate-pulse" /> Printer Bluetooth
+                  </h4>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${connectedBt ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                    <span className="text-[10px] font-semibold text-gray-500">
+                      {connectedBt ? 'Tersambung' : 'Terputus'}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Koneksi Printer Jaringan (LAN/Wi-Fi) */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-bold text-gray-400 flex items-center gap-1.5">
-                <Printer className="w-4 h-4 text-emerald-500" /> Printer Jaringan (LAN/Wi-Fi)
-              </h4>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-[10px] text-gray-400 mb-1">Alamat IP Printer</label>
-                  <input type="text" value={lanIp} onChange={e => setLanIp(e.target.value)} className="input text-xs" />
+                <div className="flex gap-3 items-center">
+                  {btScanning ? (
+                    <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex-shrink-0">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75 animate-ping" />
+                      <Bluetooth className="relative w-5 h-5 text-blue-600 dark:text-blue-400 animate-pulse" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800/60 flex items-center justify-center flex-shrink-0">
+                      <Bluetooth className="w-5 h-5 text-gray-400" />
+                    </div>
+                  )}
+                  <button 
+                    onClick={handleBluetoothScan} 
+                    disabled={btScanning}
+                    className="btn btn-outline py-2 px-3 flex-1 text-xs font-bold"
+                  >
+                    {btScanning ? 'Memindai...' : 'Pindai Printer Bluetooth'}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-[10px] text-gray-400 mb-1">Port</label>
-                  <input type="text" value={lanPort} onChange={e => setLanPort(e.target.value)} className="input text-xs" />
-                </div>
+
+                {btDevices.length > 0 && (
+                  <div className="border rounded-xl p-3 bg-gray-50 dark:bg-gray-800/30 text-xs transition-all animate-fade-in">
+                    <p className="font-semibold text-gray-400 mb-2">Perangkat Tertaut:</p>
+                    <div className="space-y-2">
+                      {btDevices.map((d) => (
+                        <div key={d.id} className="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                          <span className="font-medium text-gray-600 dark:text-gray-300">{d.name}</span>
+                          <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black px-2 py-0.5 rounded-full">Active</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <button 
-                onClick={handleLanPrintTest} 
-                disabled={lanTesting}
-                className="btn btn-outline w-full py-2.5 text-xs font-medium flex items-center justify-center gap-2"
-              >
-                {lanTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
-                Kirim Perintah Cetak Uji
-              </button>
-            </div>
 
-            {/* Pemicu Tambahan */}
-            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
-              <div className="flex items-center justify-between p-3 border rounded-xl bg-gray-50 dark:bg-gray-800/40">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Laci Uang Otomatis (Cash Drawer)</span>
-                  <span className="text-[10px] text-gray-400 mt-0.5">Pemicu tendang laci saat bayar tunai</span>
+              {/* LAN/WiFi Section */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+                  <Printer className="w-4 h-4 text-emerald-500" /> Printer Jaringan (LAN / Wi-Fi)
+                </h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-[9px] font-bold text-gray-400 mb-1">Alamat IP Printer</label>
+                    <input type="text" value={lanIp} onChange={e => setLanIp(e.target.value)} className="input text-xs py-1.5" />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-gray-400 mb-1">Port</label>
+                    <input type="text" value={lanPort} onChange={e => setLanPort(e.target.value)} className="input text-xs py-1.5" />
+                  </div>
                 </div>
                 <button 
-                  onClick={() => setAutoOpenDrawer(!autoOpenDrawer)}
-                  className="flex-shrink-0"
+                  onClick={handleLanPrintTest} 
+                  disabled={lanTesting}
+                  className="btn btn-outline w-full py-2 text-xs font-bold flex items-center justify-center gap-1.5"
                 >
-                  {autoOpenDrawer ? (
-                    <div className="w-11 h-6 rounded-full flex items-center p-0.5 bg-indigo-600"><div className="w-5 h-5 rounded-full bg-white ml-auto shadow-sm" /></div>
-                  ) : (
-                    <div className="w-11 h-6 rounded-full flex items-center p-0.5 bg-gray-300 dark:bg-gray-700"><div className="w-5 h-5 rounded-full bg-white shadow-sm" /></div>
-                  )}
+                  {lanTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Printer className="w-3.5 h-3.5" />}
+                  Kirim Cetak Uji
                 </button>
               </div>
 
-              <div className="flex items-center justify-between p-3 border rounded-xl bg-gray-50 dark:bg-gray-800/40">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Mode Barcode Scanner</span>
-                  <span className="text-[10px] text-gray-400 mt-0.5">Metode input periferal kasir</span>
+              {/* Extra Triggers */}
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
+                <div className="flex items-center justify-between p-3.5 border border-gray-100 dark:border-gray-850 rounded-xl bg-gray-50/50 dark:bg-gray-800/20">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Buka Laci Uang Otomatis</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5">Kick drawer otomatis untuk transaksi Tunai</span>
+                  </div>
+                  <button 
+                    onClick={() => setAutoOpenDrawer(!autoOpenDrawer)}
+                    className="flex-shrink-0 focus:outline-none"
+                  >
+                    {autoOpenDrawer ? (
+                      <div className="w-11 h-6 rounded-full flex items-center p-0.5 bg-indigo-600 transition-colors"><div className="w-5 h-5 rounded-full bg-white ml-auto shadow-sm" /></div>
+                    ) : (
+                      <div className="w-11 h-6 rounded-full flex items-center p-0.5 bg-gray-300 dark:bg-gray-700 transition-colors"><div className="w-5 h-5 rounded-full bg-white shadow-sm" /></div>
+                    )}
+                  </button>
                 </div>
-                <select 
-                  value={barcodeScannerMode} 
-                  onChange={e => setBarcodeScannerMode(e.target.value as any)} 
-                  className="input py-1 text-xs w-40"
-                >
-                  <option value="keyboard">Keyboard Emulator</option>
-                  <option value="api">Web USB/HID API</option>
-                </select>
+
+                <div className="flex items-center justify-between p-3.5 border border-gray-100 dark:border-gray-850 rounded-xl bg-gray-50/50 dark:bg-gray-800/20">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Mode Barcode Scanner</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5">Metode baca kode produk periferal</span>
+                  </div>
+                  <select 
+                    value={barcodeScannerMode} 
+                    onChange={e => setBarcodeScannerMode(e.target.value as any)} 
+                    className="input py-1 text-xs w-36 border border-gray-200 dark:border-gray-800 rounded-lg"
+                  >
+                    <option value="keyboard">Keyboard Emulator</option>
+                    <option value="api">Web USB/HID API</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* CARD 3: PAYMENT PORTAL */}
+          <div className="card p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-5">
+            <h3 className="font-semibold text-base flex items-center gap-2 border-b pb-3" style={{ color: 'var(--color-text-primary)' }}>
+              <CreditCard className="w-5 h-5 text-emerald-500" /> Portal Pembayaran Nontunai
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Integrasi Mesin EDC
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold mb-1 text-gray-400">API Gateway URL</label>
+                    <input type="text" value={edcApiUrl} onChange={e => setEdcApiUrl(e.target.value)} className="input text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold mb-1 text-gray-400">Terminal Secret Key</label>
+                    <input type="password" value={edcApiKey} onChange={e => setEdcApiKey(e.target.value)} className="input text-xs font-mono" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Kredensial QRIS Dinamis
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-semibold mb-1 text-gray-400">Merchant ID (MID)</label>
+                    <input type="text" value={qrisMerchantId} onChange={e => setQrisMerchantId(e.target.value)} className="input text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold mb-1 text-gray-400">Terminal ID (TID)</label>
+                    <input type="text" value={qrisTerminalId} onChange={e => setQrisTerminalId(e.target.value)} className="input text-xs" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* RIGHT COLUMN (1/3 width, focused on Sync Status, Localization & Backup) */}
+        <div className="space-y-6">
+
+          {/* CARD 4: OFFLINE SYNC DASHBOARD (GLOWING CARDS) */}
+          <div className="card p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-4">
+            <h3 className="font-semibold text-base flex items-center gap-2 border-b pb-3" style={{ color: 'var(--color-text-primary)' }}>
+              <Database className="w-5 h-5 text-blue-500" /> Sinkronisasi Offline-First
+            </h3>
+
+            <div className="flex flex-col gap-3">
+              {/* Online/Offline Status */}
+              {isOnline ? (
+                <div className="rounded-xl p-4 bg-emerald-50/30 dark:bg-emerald-950/10 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)] transition-all duration-300 hover:shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">Status Koneksi</span>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                  </div>
+                  <p className="text-sm font-black text-emerald-700 dark:text-emerald-400 mt-2">Tersambung (Online)</p>
+                </div>
+              ) : (
+                <div className="rounded-xl p-4 bg-red-50/30 dark:bg-red-950/10 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)] transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-red-800 dark:text-red-400">Status Koneksi</span>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                    </span>
+                  </div>
+                  <p className="text-sm font-black text-red-700 dark:text-red-400 mt-2">Terputus (Offline)</p>
+                </div>
+              )}
+
+              {/* IndexedDB Counter status */}
+              <div className="rounded-xl p-4 bg-amber-50/30 dark:bg-amber-950/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.05)] transition-all duration-300 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-400">Antrean Lokal</span>
+                  <Database className="w-4 h-4 text-amber-500" />
+                </div>
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <p className={`text-2xl font-black ${unsyncedCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500'}`}>
+                    {unsyncedCount}
+                  </p>
+                  <span className="text-[10px] text-amber-600 dark:text-amber-500 font-bold">Transaksi Tertunda</span>
+                </div>
               </div>
             </div>
 
+            <button 
+              onClick={handleManualSync} 
+              disabled={syncing || !isOnline} 
+              className="btn btn-primary w-full py-2.5 text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
+            >
+              {syncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {syncing ? 'Menyelaraskan data...' : 'Sinkronkan Sekarang'}
+            </button>
+
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 pt-1 border-t border-gray-100 dark:border-gray-800">
+              <Clock className="w-3.5 h-3.5 text-gray-400" />
+              <span>Sinkronisasi terakhir: </span>
+              <span className="font-bold text-gray-600 dark:text-gray-300">
+                {lastSyncTime ? (
+                  new Date(lastSyncTime).toLocaleDateString('id-ID', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                  })
+                ) : 'Belum pernah'}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* SECTION 6: DATA BACKUP & RESTORE */}
-        <div className="card p-5 lg:col-span-2 space-y-4">
-          <h3 className="font-semibold text-lg flex items-center gap-2 border-b pb-2" style={{ color: 'var(--color-text-primary)' }}>
-            <Database className="w-5 h-5 text-indigo-500" /> Ekspor & Impor Cadangan Data
-          </h3>
+          {/* CARD 5: LOKALISASI & ALERTS */}
+          <div className="card p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-4">
+            <h3 className="font-semibold text-base flex items-center gap-2 border-b pb-3" style={{ color: 'var(--color-text-primary)' }}>
+              <Globe className="w-5 h-5 text-amber-500" /> Lokalisasi & Notifikasi
+            </h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-gray-500 dark:text-gray-400">Zona Waktu Operasional</label>
+                <select value={timezone} onChange={e => setTimezone(e.target.value)} className="input py-2 text-xs">
+                  <option value="Asia/Jakarta">WIB - Asia/Jakarta (GMT+7)</option>
+                  <option value="Asia/Makassar">WITA - Asia/Makassar (GMT+8)</option>
+                  <option value="Asia/Jayapura">WIT - Asia/Jayapura (GMT+9)</option>
+                </select>
+              </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-lg" style={{ background: lastBackup ? 'rgb(34 197 94 / 0.08)' : 'rgb(239 68 68 / 0.08)' }}>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-gray-500 dark:text-gray-400">Batas Minimum Stok Kritis</label>
+                <div className="relative">
+                  <input 
+                    type="number" 
+                    value={minStockLimit} 
+                    onChange={e => setMinStockLimit(parseInt(e.target.value) || 0)} 
+                    className="input text-xs pr-10" 
+                    min="0"
+                  />
+                  <span className="absolute right-3 top-2.5 text-[10px] text-gray-400 font-bold">UNIT</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-xl flex items-start gap-2.5">
+                <BellRing className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-[10px] text-amber-700 dark:text-amber-300 leading-normal">
+                  Sistem otomatis memberikan notifikasi dan tanda peringatan kritis di dashboard inventori ketika persediaan bahan baku kurang dari batas minimum di atas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* CARD 6: EXPORT & RESTORE DATA */}
+          <div className="card p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-4">
+            <h3 className="font-semibold text-base flex items-center gap-2 border-b pb-3" style={{ color: 'var(--color-text-primary)' }}>
+              <Database className="w-5 h-5 text-indigo-500" /> Cadangan Laporan
+            </h3>
+
             {lastBackup ? (
-              <>
-                <CheckCircle2 className="w-5 h-5 flex-shrink-0 text-emerald-500" />
-                <div>
-                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-400">Cadangan Terakhir Tersimpan</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(lastBackup).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                <div className="text-[10px]">
+                  <p className="font-bold text-emerald-700 dark:text-emerald-400">Backup Tersimpan</p>
+                  <p className="text-gray-400">
+                    {new Date(lastBackup).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-              </>
+              </div>
             ) : (
-              <>
-                <Shield className="w-5 h-5 flex-shrink-0 text-rose-500" />
-                <div>
-                  <p className="text-sm font-semibold text-rose-800 dark:text-rose-400">Cadangan Belum Tersedia</p>
-                  <p className="text-xs text-gray-500">Unduh cadangan data sekarang untuk memproteksi laporan penting Anda.</p>
+              <div className="flex items-center gap-2.5 p-3 rounded-xl bg-rose-500/5 border border-rose-500/10">
+                <Shield className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                <div className="text-[10px]">
+                  <p className="font-bold text-rose-700 dark:text-rose-400">Belum Ada Backup</p>
+                  <p className="text-gray-400 leading-tight">Segera lakukan ekspor cadangan data demi keamanan laporan Anda.</p>
                 </div>
-              </>
+              </div>
             )}
+
+            <div className="flex flex-col gap-2.5 pt-1">
+              <button onClick={handleBackup} disabled={backupLoading} className="btn btn-primary py-2 text-xs flex items-center justify-center gap-2 font-bold shadow-sm">
+                {backupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Ekspor Data (.json)
+              </button>
+              <label className={`btn btn-outline cursor-pointer py-2 text-xs flex items-center justify-center gap-2 font-bold ${restoreLoading ? 'opacity-50' : ''}`}>
+                {restoreLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                Impor Data (.json)
+                <input type="file" accept=".json" onChange={handleRestoreSelect} className="hidden" disabled={restoreLoading} />
+              </label>
+            </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={handleBackup} disabled={backupLoading} className="btn btn-primary flex-1 py-2 text-xs flex items-center justify-center gap-2">
-              {backupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {backupLoading ? 'Mengekspor data...' : 'Ekspor Cadangan (.json)'}
-            </button>
-            <label className={`btn btn-outline flex-1 cursor-pointer py-2 text-xs flex items-center justify-center gap-2 ${restoreLoading ? 'opacity-50' : ''}`}>
-              {restoreLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              {restoreLoading ? 'Memulihkan...' : 'Impor Cadangan (.json)'}
-              <input type="file" accept=".json" onChange={handleRestoreSelect} className="hidden" disabled={restoreLoading} />
-            </label>
-          </div>
-          <p className="text-xs text-gray-400 leading-relaxed">
-            Berkas cadangan (.json) mencakup seluruh koleksi lokal: Produk, Kategori, Pelanggan, Transaksi, Diskon, dan Pengaturan.
-          </p>
         </div>
 
       </div>

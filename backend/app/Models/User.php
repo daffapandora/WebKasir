@@ -18,6 +18,8 @@ class User extends Authenticatable
         'password',
         'role',
         'branch_id',
+        'branch_name',
+        'permissions',
         'is_active',
     ];
 
@@ -30,6 +32,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'is_active' => 'boolean',
+        'permissions' => 'array',
     ];
 
     public function branch()

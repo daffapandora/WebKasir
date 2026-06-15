@@ -10,7 +10,7 @@ class Transaction extends Model
         'uuid', 'invoice_number', 'branch_id', 'branch_name', 'cashier_id', 'cashier_name',
         'customer_id', 'customer_name', 'subtotal', 'discount_amount', 'tax_amount',
         'service_charge', 'total', 'change_amount', 'status', 'voided_by', 'void_reason',
-        'refunded_by', 'refund_reason', 'shift_id', 'completed_at_client'
+        'refunded_by', 'refund_reason', 'shift_id', 'completed_at_client', 'payments'
     ];
 
     protected $casts = [
@@ -21,6 +21,7 @@ class Transaction extends Model
         'total' => 'integer',
         'change_amount' => 'integer',
         'completed_at_client' => 'datetime',
+        'payments' => 'array',
     ];
 
     public function items()

@@ -31,11 +31,11 @@ class DatabaseSeeder extends Seeder
         $branch3 = Branch::create(['name' => 'Cabang Bandung', 'address' => 'Jl. Dago No. 100, Bandung', 'phone' => '022-2501234', 'is_active' => true]);
 
         // 2. Users (Employees)
-        $user1 = User::create(['name' => 'Budi Santoso', 'email' => 'budi@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'super_admin', 'branch_id' => $branch1->id, 'is_active' => true]);
-        $user2 = User::create(['name' => 'Siti Rahayu', 'email' => 'siti@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'admin', 'branch_id' => $branch1->id, 'is_active' => true]);
-        $user3 = User::create(['name' => 'Ahmad Fauzi', 'email' => 'ahmad@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'manager', 'branch_id' => $branch2->id, 'is_active' => true]);
-        $user4 = User::create(['name' => 'Dewi Lestari', 'email' => 'dewi@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'cashier', 'branch_id' => $branch1->id, 'is_active' => true]);
-        $user5 = User::create(['name' => 'Rizki Pratama', 'email' => 'rizki@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'cashier', 'branch_id' => $branch2->id, 'is_active' => true]);
+        $user1 = User::create(['name' => 'Budi Santoso', 'email' => 'budi@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'super_admin', 'branch_id' => $branch1->id, 'branch_name' => $branch1->name, 'permissions' => ['*'], 'is_active' => true]);
+        $user2 = User::create(['name' => 'Siti Rahayu', 'email' => 'siti@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'admin', 'branch_id' => $branch1->id, 'branch_name' => $branch1->name, 'permissions' => ['*'], 'is_active' => true]);
+        $user3 = User::create(['name' => 'Ahmad Fauzi', 'email' => 'ahmad@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'manager', 'branch_id' => $branch2->id, 'branch_name' => $branch2->name, 'permissions' => ['*'], 'is_active' => true]);
+        $user4 = User::create(['name' => 'Dewi Lestari', 'email' => 'dewi@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'cashier', 'branch_id' => $branch1->id, 'branch_name' => $branch1->name, 'permissions' => ['sales.create'], 'is_active' => true]);
+        $user5 = User::create(['name' => 'Rizki Pratama', 'email' => 'rizki@tokoku.id', 'password' => Hash::make('demo123'), 'role' => 'cashier', 'branch_id' => $branch2->id, 'branch_name' => $branch2->name, 'permissions' => ['sales.create'], 'is_active' => true]);
 
         // 3. Categories
         $cat1 = Category::create(['name' => 'Makanan', 'slug' => 'makanan', 'icon' => '🍔', 'color' => 'orange', 'is_active' => true]);
@@ -47,13 +47,13 @@ class DatabaseSeeder extends Seeder
         $cat7 = Category::create(['name' => 'Lainnya', 'slug' => 'lainnya', 'icon' => '📦', 'color' => 'gray', 'is_active' => true]);
 
         // 4. Products
-        $p1 = Product::create(['name' => 'Indomie Goreng Spesial', 'sku' => 'FD001', 'barcode' => '077655059881', 'category_id' => $cat1->id, 'cost_price' => 2500, 'sale_price' => 3500, 'stock' => 150, 'min_stock' => 20, 'unit' => 'pcs', 'is_active' => true, 'has_batch' => false]);
-        $p2 = Product::create(['name' => 'Aqua Air Mineral 600ml', 'sku' => 'BV001', 'barcode' => '8886008101053', 'category_id' => $cat2->id, 'cost_price' => 1800, 'sale_price' => 3000, 'stock' => 240, 'min_stock' => 30, 'unit' => 'botol', 'is_active' => true, 'has_batch' => false]);
-        $p3 = Product::create(['name' => 'Teh Botol Sosro Kotak 250ml', 'sku' => 'BV002', 'barcode' => '8992696404415', 'category_id' => $cat2->id, 'cost_price' => 2200, 'sale_price' => 3500, 'stock' => 80, 'min_stock' => 15, 'unit' => 'kotak', 'is_active' => true, 'has_batch' => false]);
-        $p4 = Product::create(['name' => 'Chitato Sapi Panggang 68g', 'sku' => 'SN001', 'barcode' => '8998866200253', 'category_id' => $cat3->id, 'cost_price' => 8500, 'sale_price' => 11500, 'stock' => 45, 'min_stock' => 10, 'unit' => 'bungkus', 'is_active' => true, 'has_batch' => false]);
-        $p5 = Product::create(['name' => 'Sampoerna Mild 16', 'sku' => 'RK001', 'barcode' => '8999909002241', 'category_id' => $cat4->id, 'cost_price' => 28000, 'sale_price' => 32000, 'stock' => 120, 'min_stock' => 12, 'unit' => 'bungkus', 'is_active' => true, 'has_batch' => false]);
-        $p6 = Product::create(['name' => 'Pepsodent Pencegah Gigi Berlubang 190g', 'sku' => 'TL001', 'barcode' => '8999999052063', 'category_id' => $cat5->id, 'cost_price' => 11000, 'sale_price' => 14500, 'stock' => 60, 'min_stock' => 10, 'unit' => 'tubes', 'is_active' => true, 'has_batch' => false]);
-        $p7 = Product::create(['name' => 'Panadol Extra 10 Tablet', 'sku' => 'MD001', 'barcode' => '8999999000101', 'category_id' => $cat6->id, 'cost_price' => 10500, 'sale_price' => 13500, 'stock' => 35, 'min_stock' => 8, 'unit' => 'blister', 'is_active' => true, 'has_batch' => true]);
+        $p1 = Product::create(['name' => 'Indomie Goreng Spesial', 'sku' => 'FD001', 'barcode' => '077655059881', 'category_id' => $cat1->id, 'category_name' => $cat1->name, 'cost_price' => 2500, 'sale_price' => 3500, 'stock' => 150, 'min_stock' => 20, 'unit' => 'pcs', 'is_active' => true, 'has_batch' => false]);
+        $p2 = Product::create(['name' => 'Aqua Air Mineral 600ml', 'sku' => 'BV001', 'barcode' => '8886008101053', 'category_id' => $cat2->id, 'category_name' => $cat2->name, 'cost_price' => 1800, 'sale_price' => 3000, 'stock' => 240, 'min_stock' => 30, 'unit' => 'botol', 'is_active' => true, 'has_batch' => false]);
+        $p3 = Product::create(['name' => 'Teh Botol Sosro Kotak 250ml', 'sku' => 'BV002', 'barcode' => '8992696404415', 'category_id' => $cat2->id, 'category_name' => $cat2->name, 'cost_price' => 2200, 'sale_price' => 3500, 'stock' => 80, 'min_stock' => 15, 'unit' => 'kotak', 'is_active' => true, 'has_batch' => false]);
+        $p4 = Product::create(['name' => 'Chitato Sapi Panggang 68g', 'sku' => 'SN001', 'barcode' => '8998866200253', 'category_id' => $cat3->id, 'category_name' => $cat3->name, 'cost_price' => 8500, 'sale_price' => 11500, 'stock' => 45, 'min_stock' => 10, 'unit' => 'bungkus', 'is_active' => true, 'has_batch' => false]);
+        $p5 = Product::create(['name' => 'Sampoerna Mild 16', 'sku' => 'RK001', 'barcode' => '8999909002241', 'category_id' => $cat4->id, 'category_name' => $cat4->name, 'cost_price' => 28000, 'sale_price' => 32000, 'stock' => 120, 'min_stock' => 12, 'unit' => 'bungkus', 'is_active' => true, 'has_batch' => false]);
+        $p6 = Product::create(['name' => 'Pepsodent Pencegah Gigi Berlubang 190g', 'sku' => 'TL001', 'barcode' => '8999999052063', 'category_id' => $cat5->id, 'category_name' => $cat5->name, 'cost_price' => 11000, 'sale_price' => 14500, 'stock' => 60, 'min_stock' => 10, 'unit' => 'tubes', 'is_active' => true, 'has_batch' => false]);
+        $p7 = Product::create(['name' => 'Panadol Extra 10 Tablet', 'sku' => 'MD001', 'barcode' => '8999999000101', 'category_id' => $cat6->id, 'category_name' => $cat6->name, 'cost_price' => 10500, 'sale_price' => 13500, 'stock' => 35, 'min_stock' => 8, 'unit' => 'blister', 'is_active' => true, 'has_batch' => true]);
 
         // 5. Product Batches for Panadol
         $p7->batches()->create(['batch_number' => 'BCH-2025-001', 'expiry_date' => '2027-12-31', 'quantity' => 20, 'cost_price' => 10500]);
@@ -121,6 +121,7 @@ class DatabaseSeeder extends Seeder
             'change_amount' => 30000 - $total,
             'status' => 'completed',
             'shift_id' => $shift->id,
+            'payments' => [['method' => 'cash', 'amount' => 30000]],
         ]);
 
         $trans->items()->create(['product_id' => $p1->id, 'product_name' => $p1->name, 'sku' => $p1->sku, 'quantity' => 1, 'unit_price' => $p1->sale_price, 'subtotal' => $p1->sale_price]);

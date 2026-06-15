@@ -25,6 +25,8 @@ return new class extends Migration
             $table->string('password');
             $table->string('role')->default('cashier'); // super_admin, admin, manager, cashier
             $table->foreignId('branch_id')->nullable()->constrained('branches')->onDelete('set null');
+            $table->string('branch_name')->nullable();
+            $table->json('permissions')->nullable();
             $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();
@@ -36,6 +38,7 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->string('icon')->nullable();
             $table->string('color')->nullable();
+            $table->integer('product_count')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -46,6 +49,7 @@ return new class extends Migration
             $table->string('sku')->unique();
             $table->string('barcode')->unique();
             $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
+            $table->string('category_name')->nullable();
             $table->bigInteger('cost_price');
             $table->bigInteger('sale_price');
             $table->integer('stock')->default(0);

@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class PurchaseOrder extends Model
 {
     protected $fillable = [
-        'po_number', 'supplier_id', 'branch_id', 'total', 'status', 'notes', 'created_by'
+        'po_number', 'supplier_id', 'supplier_name', 'branch_id', 'total', 'status', 'notes', 'created_by', 'items'
     ];
 
     protected $casts = [
         'total' => 'integer',
+        'items' => 'array',
     ];
 
     public function supplier()

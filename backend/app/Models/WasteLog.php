@@ -10,12 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class WasteLog extends Model
 {
     protected $fillable = [
-        'user_id', 'user_name', 'total_loss_amount', 'logged_at', 'notes',
+        'user_id', 'user_name', 'total_loss_amount', 'logged_at', 'notes', 'items'
     ];
 
     protected $casts = [
         'total_loss_amount' => 'decimal:2',
         'logged_at'         => 'datetime',
+        'items'             => 'array',
     ];
 
     public function user(): BelongsTo

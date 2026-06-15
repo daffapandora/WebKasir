@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $fillable = [
-        'name', 'sku', 'barcode', 'category_id',
+        'name', 'sku', 'barcode', 'category_id', 'category_name',
         'cost_price', 'sale_price', 'stock', 'min_stock',
         'unit', 'image', 'is_active', 'has_batch',
-        'hpp_auto', 'use_recipe'
+        'hpp_auto', 'use_recipe', 'ingredients'
     ];
 
     protected $casts = [
@@ -22,6 +22,7 @@ class Product extends Model
         'has_batch' => 'boolean',
         'use_recipe' => 'boolean',
         'hpp_auto' => 'decimal:2',
+        'ingredients' => 'array',
     ];
 
     public function category()

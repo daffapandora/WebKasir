@@ -83,11 +83,13 @@ return new class extends Migration
             $table->id();
             $table->string('po_number')->unique();
             $table->foreignId('supplier_id')->constrained('suppliers')->onDelete('cascade');
+            $table->string('supplier_name')->nullable();
             $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
             $table->bigInteger('total');
             $table->string('status')->default('draft'); // draft, sent, partial, received, cancelled
             $table->string('notes')->nullable();
             $table->string('created_by');
+            $table->json('items')->nullable();
             $table->timestamps();
         });
 

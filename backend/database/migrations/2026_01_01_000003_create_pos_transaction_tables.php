@@ -50,6 +50,7 @@ return new class extends Migration
             $table->string('refunded_by')->nullable();
             $table->string('refund_reason')->nullable();
             $table->foreignId('shift_id')->constrained('shifts')->onDelete('cascade');
+            $table->json('payments')->nullable();
             $table->timestamps();
         });
 

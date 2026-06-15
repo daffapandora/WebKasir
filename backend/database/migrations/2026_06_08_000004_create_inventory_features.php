@@ -64,6 +64,7 @@ return new class extends Migration
                   ->comment('HPP kalkulasi otomatis dari product_ingredients');
             $table->boolean('use_recipe')->default(false)->after('hpp_auto')
                   ->comment('true = gunakan resep untuk HPP, false = manual cost_price');
+            $table->json('ingredients')->nullable()->after('use_recipe');
         });
 
         // ──────────────────────────────────────────────
@@ -97,6 +98,7 @@ return new class extends Migration
             $table->decimal('total_loss_amount', 15, 2)->default(0);
             $table->timestamp('logged_at');
             $table->text('notes')->nullable();
+            $table->json('items')->nullable();
             $table->timestamps();
 
             $table->index('logged_at');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getProducts, addProduct, updateProduct, deleteProduct, getCategories, logAuditTrail, getStockMovements } from '@/lib/firebase-service';
+import { getProducts, addProduct, updateProduct, deleteProduct, getCategories, addCategory, logAuditTrail, getStockMovements } from '@/lib/firebase-service';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Plus, Search, Edit2, Trash2, Loader2, X, Upload, EyeOff, Eye, BarChart3, History, Layers } from 'lucide-react';
 import { useUIStore } from '@/store/ui-store';
@@ -36,10 +36,17 @@ export default function ProductsPage() {
   const [formSalePrice, setFormSalePrice] = useState<number | ''>('');
   const [formStock, setFormStock] = useState<number | ''>(0);
   const [formMinStock, setFormMinStock] = useState<number | ''>(5);
-  const [formUnit, setFormUnit] = useState('pcs');
+  const [formUnitType, setFormUnitType] = useState('pcs');
+  const [formUnitValue, setFormUnitValue] = useState<number | ''>(1);
   const [formImageText, setFormImageText] = useState('');
   const [formHasBatch, setFormHasBatch] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // New Category creation states
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('📦');
+  const [savingCategory, setSavingCategory] = useState(false);
 
   // Recipe (BOM) state
   const [formUseRecipe, setFormUseRecipe] = useState(false);
@@ -96,7 +103,8 @@ export default function ProductsPage() {
     setFormSalePrice('');
     setFormStock(0);
     setFormMinStock(5);
-    setFormUnit('pcs');
+    setFormUnitType('pcs');
+    setFormUnitValue(1);
     setFormImageText('');
     setFormHasBatch(false);
     setFormTab('general');
@@ -105,6 +113,7 @@ export default function ProductsPage() {
     setRecipeIngredients([]);
     setSelectedIngredientToAdd('');
     setQuantityToAdd(1);
+    setShowAddCategory(false);
     setShowForm(true);
   };
 
@@ -118,7 +127,12 @@ export default function ProductsPage() {
     setFormSalePrice(product.sale_price);
     setFormStock(product.stock);
     setFormMinStock(product.min_stock);
-    setFormUnit(product.unit);
+    
+    // Parse unit (e.g., "10pcs" -> value 10, type "pcs")
+    const unitMatch = (product.unit || 'pcs').match(/^(\d+)?\s*(.*)$/);
+    setFormUnitValue(unitMatch && unitMatch[1] ? Number(unitMatch[1]) : 1);
+    setFormUnitType(unitMatch && unitMatch[2] ? unitMatch[2].trim() : 'pcs');
+
     setFormImageText(product.image || '');
     setFormHasBatch(product.has_batch);
     setFormTab('general');
@@ -127,6 +141,7 @@ export default function ProductsPage() {
     setRecipeIngredients(product.ingredients || []);
     setSelectedIngredientToAdd('');
     setQuantityToAdd(1);
+    setShowAddCategory(false);
     setShowForm(true);
   };
 
@@ -211,6 +226,29 @@ export default function ProductsPage() {
     ? ((Number(formSalePrice) - cogsEstimate) / Number(formSalePrice) * 100)
     : 0;
 
+  const handleSaveCategory = async () => {
+    if (!newCategoryName) return;
+    try {
+      setSavingCategory(true);
+      const slug = newCategoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const created = await addCategory({
+        name: newCategoryName,
+        slug,
+        icon: newCategoryIcon || '📦',
+        is_active: true
+      });
+      setCategories(prev => [...prev, created]);
+      setFormCategoryId(created.id);
+      setShowAddCategory(false);
+      addToast('success', 'Kategori baru berhasil ditambahkan');
+    } catch (err) {
+      console.error(err);
+      addToast('error', 'Gagal menambahkan kategori');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName || !formSku || !formBarcode || !formCategoryId || !formSalePrice) {
@@ -223,6 +261,9 @@ export default function ProductsPage() {
       const cat = categories.find(c => c.id === Number(formCategoryId));
 
       const finalCostPrice = formUseRecipe ? Math.round(cogsEstimate) : (Number(formCostPrice) || 0);
+      const finalUnit = formUnitValue && Number(formUnitValue) > 1
+        ? `${formUnitValue}${formUnitType}`
+        : formUnitType;
 
       const payload = {
         name: formName,
@@ -234,7 +275,7 @@ export default function ProductsPage() {
         sale_price: Number(formSalePrice),
         stock: Number(formStock) || 0,
         min_stock: Number(formMinStock) || 0,
-        unit: formUnit,
+        unit: finalUnit,
         image: formImageText,
         has_batch: formHasBatch,
         variants: formVariants,
@@ -637,17 +678,101 @@ export default function ProductsPage() {
                     <input type="text" value={formBarcode} onChange={e => setFormBarcode(e.target.value)} className="input" placeholder="899xxxx" required />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold mb-1">Kategori *</label>
-                    <select value={formCategoryId} onChange={e => setFormCategoryId(Number(e.target.value))} className="input" required>
-                      <option value="">Pilih Kategori</option>
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                   <div>
+                    {showAddCategory ? (
+                      <div className="card p-3 border rounded-xl space-y-3 bg-[var(--color-bg-elevated)]" style={{ borderColor: 'var(--color-accent)' }}>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)]">Tambah Kategori Baru</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newCategoryIcon}
+                            onChange={e => setNewCategoryIcon(e.target.value)}
+                            placeholder="🍜"
+                            className="input text-center w-12"
+                            maxLength={2}
+                          />
+                          <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={e => setNewCategoryName(e.target.value)}
+                            placeholder="Nama kategori..."
+                            className="input flex-1"
+                            required
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setShowAddCategory(false)}
+                            className="btn btn-sm btn-outline py-1 px-3 text-[10px]"
+                          >
+                            Batal
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveCategory}
+                            disabled={savingCategory || !newCategoryName}
+                            className="btn btn-sm btn-primary py-1 px-3 text-[10px]"
+                          >
+                            {savingCategory ? '...' : 'Simpan'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <label className="block text-xs font-semibold mb-1 flex justify-between items-center">
+                          <span>Kategori *</span>
+                          <button
+                            type="button"
+                            onClick={() => { setShowAddCategory(true); setNewCategoryName(''); }}
+                            className="text-[10px] text-[var(--color-accent)] font-bold hover:underline"
+                          >
+                            + Kategori Baru
+                          </button>
+                        </label>
+                        <select
+                          value={formCategoryId}
+                          onChange={e => setFormCategoryId(e.target.value ? Number(e.target.value) : '')}
+                          className="input"
+                          required
+                        >
+                          <option value="">Pilih Kategori</option>
+                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </>
+                    )}
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold mb-1">Satuan</label>
-                    <input type="text" value={formUnit} onChange={e => setFormUnit(e.target.value)} className="input" placeholder="pcs, botol, pack..." />
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        value={formUnitValue}
+                        onChange={e => setFormUnitValue(e.target.value ? Number(e.target.value) : '')}
+                        className="input text-center w-20"
+                        placeholder="1"
+                      />
+                      <select
+                        value={formUnitType}
+                        onChange={e => setFormUnitType(e.target.value)}
+                        className="input flex-1"
+                      >
+                        <option value="pcs">pcs</option>
+                        <option value="gram">gram (g)</option>
+                        <option value="kg">kilogram (kg)</option>
+                        <option value="ml">mililiter (ml)</option>
+                        <option value="liter">liter (L)</option>
+                        <option value="pack">pack</option>
+                        <option value="box">box</option>
+                        <option value="botol">botol</option>
+                        <option value="kotak">kotak</option>
+                        <option value="bungkus">bungkus</option>
+                        <option value="sachet">sachet</option>
+                        <option value="strip">strip</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>

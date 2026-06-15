@@ -81,6 +81,19 @@ export async function getCategories(): Promise<Category[]> {
   return data || [];
 }
 
+export async function addCategory(category: Omit<Category, "id" | "product_count">): Promise<Category> {
+  const id = Date.now();
+  const newCategory: Category = {
+    ...category,
+    id,
+    product_count: 0,
+  };
+  const { error } = await supabase.from("categories").insert([cleanData(newCategory)]);
+  if (error) throw error;
+  return newCategory;
+}
+
+
 // ─── Products CRUD ───
 export async function getProducts(): Promise<Product[]> {
   const { data, error } = await supabase.from("products").select("*");
@@ -363,8 +376,8 @@ export async function addTransaction(transaction: Omit<Transaction, "id" | "crea
   if (txError) throw txError;
 
   // Insert items
-  const itemsToInsert = transaction.items.map(item => ({
-    id: item.id || (Date.now() + Math.floor(Math.random() * 1000)),
+  const itemsToInsert = transaction.items.map((item, index) => ({
+    id: Date.now() + index + Math.floor(Math.random() * 1000),
     transaction_id: id,
     product_id: item.product_id,
     product_name: item.product_name,

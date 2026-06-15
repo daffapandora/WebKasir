@@ -166,7 +166,7 @@ export default function POSPage() {
         }
 
         if (isAvailable) {
-          cart.addItem(match.id);
+          cart.addItem(match);
           setSearchQuery('');
           addToast('success', `${match.name} ditambahkan`);
         } else {
@@ -195,7 +195,7 @@ export default function POSPage() {
         return;
       }
     }
-    cart.addItem(productId);
+    cart.addItem(product);
   };
 
   const handleHoldBill = () => {
@@ -472,45 +472,59 @@ export default function POSPage() {
                     <p className="font-medium text-sm">Keranjang kosong</p>
                   </div>
                 ) : (
-                  cart.items.map(item => (
-                    <div key={item.id} className="p-3 animate-fade-in space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>{item.name}</p>
-                          {item.notes && (
-                            <p className="text-xs text-[var(--color-accent)] italic font-medium mt-0.5">
-                              * Catatan: {item.notes}
-                            </p>
-                          )}
-                          <p className="text-xs text-muted tabular-nums">{formatCurrency(item.price)} × {item.quantity}</p>
-                        </div>
-                        <p className="text-sm font-bold tabular-nums">{formatCurrency(item.subtotal)}</p>
-                      </div>
+                  cart.items.map(item => {
+                    const product = products.find(p => p.id === item.product_id);
+                    let maxStock = product ? product.stock : undefined;
+                    if (product && product.use_recipe && product.ingredients) {
+                      let minServings = Infinity;
+                      for (const req of product.ingredients) {
+                        const ing = ingredients.find(i => i.id === req.ingredient_id);
+                        const servings = ing ? Math.floor(Number(ing.stock) / req.quantity_needed) : 0;
+                        if (servings < minServings) minServings = servings;
+                      }
+                      maxStock = minServings === Infinity ? 0 : minServings;
+                    }
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => cart.decrementQuantity(item.id)} className="w-8 h-8 rounded-lg flex items-center justify-center border">-</button>
-                          <span className="w-10 text-center font-bold">{item.quantity}</span>
-                          <button onClick={() => cart.incrementQuantity(item.id)} className="w-8 h-8 rounded-lg flex items-center justify-center border">+</button>
+                    return (
+                      <div key={item.id} className="p-3 animate-fade-in space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>{item.name}</p>
+                            {item.notes && (
+                              <p className="text-xs text-[var(--color-accent)] italic font-medium mt-0.5">
+                                * Catatan: {item.notes}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted tabular-nums">{formatCurrency(item.price)} × {item.quantity}</p>
+                          </div>
+                          <p className="text-sm font-bold tabular-nums">{formatCurrency(item.subtotal)}</p>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          {/* B4-20: Item notes button */}
-                          <button
-                            onClick={() => {
-                              const note = prompt("Masukkan catatan untuk item ini:", item.notes || "");
-                              if (note !== null) cart.setItemNotes(item.id, note);
-                            }}
-                            className="btn btn-ghost btn-sm text-xs py-1 px-2 flex items-center gap-1"
-                          >
-                            📝 Note
-                          </button>
-                          <button onClick={() => cart.removeItem(item.id)} className="btn btn-ghost btn-icon btn-sm text-red-500">
-                            Hapus
-                          </button>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => cart.decrementQuantity(item.id)} className="w-8 h-8 rounded-lg flex items-center justify-center border">-</button>
+                            <span className="w-10 text-center font-bold">{item.quantity}</span>
+                            <button onClick={() => cart.incrementQuantity(item.id, maxStock)} className="w-8 h-8 rounded-lg flex items-center justify-center border">+</button>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {/* B4-20: Item notes button */}
+                            <button
+                              onClick={() => {
+                                const note = prompt("Masukkan catatan untuk item ini:", item.notes || "");
+                                if (note !== null) cart.setItemNotes(item.id, note);
+                              }}
+                              className="btn btn-ghost btn-sm text-xs py-1 px-2 flex items-center gap-1"
+                            >
+                              📝 Note
+                            </button>
+                            <button onClick={() => cart.removeItem(item.id)} className="btn btn-ghost btn-icon btn-sm text-red-500">
+                              Hapus
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
 

@@ -4,9 +4,9 @@
    ═══════════════════════════════════════════════════ */
 
 import { create } from 'zustand';
-import type { CartItem, HeldBill, PaymentMethod, Payment } from '@/types';
+import type { CartItem, HeldBill, PaymentMethod, Payment, Product } from '@/types';
 import { generateId, generateInvoiceNumber } from '@/lib/utils';
-import { MOCK_PRODUCTS, MOCK_TAX_CONFIGS } from '@/lib/mock-data';
+import { MOCK_TAX_CONFIGS } from '@/lib/mock-data';
 
 interface CartStore {
   items: CartItem[];
@@ -25,10 +25,10 @@ interface CartStore {
   total: number;
 
   // Actions
-  addItem: (productId: number) => void;
+  addItem: (product: Product) => void;
   removeItem: (itemId: string) => void;
-  updateQuantity: (itemId: string, quantity: number) => void;
-  incrementQuantity: (itemId: string) => void;
+  updateQuantity: (itemId: string, quantity: number, maxStock?: number) => void;
+  incrementQuantity: (itemId: string, maxStock?: number) => void;
   decrementQuantity: (itemId: string) => void;
   setItemDiscount: (itemId: string, type: 'fixed' | 'percentage', value: number) => void;
   setCartDiscount: (type: 'fixed' | 'percentage' | 'none', value: number) => void;
@@ -96,18 +96,17 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   serviceCharge: 0,
   total: 0,
 
-  addItem: (productId: number) => {
-    const product = MOCK_PRODUCTS.find(p => p.id === productId);
-    if (!product || !product.is_active || product.stock <= 0) return;
+  addItem: (product: Product) => {
+    if (!product || !product.is_active) return;
 
     set(state => {
-      const existing = state.items.find(i => i.product_id === productId);
+      const existing = state.items.find(i => i.product_id === product.id);
       let newItems: CartItem[];
 
       if (existing) {
-        if (existing.quantity >= product.stock) return state;
+        if (product.stock !== undefined && existing.quantity >= product.stock && !product.use_recipe) return state;
         newItems = state.items.map(i =>
-          i.product_id === productId
+          i.product_id === product.id
             ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.price - i.discount_amount }
             : i
         );
@@ -141,14 +140,13 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     });
   },
 
-  updateQuantity: (itemId: string, quantity: number) => {
+  updateQuantity: (itemId: string, quantity: number, maxStock?: number) => {
     if (quantity < 1) return;
     set(state => {
       const item = state.items.find(i => i.id === itemId);
       if (!item) return state;
 
-      const product = MOCK_PRODUCTS.find(p => p.id === item.product_id);
-      if (product && quantity > product.stock) return state;
+      if (maxStock !== undefined && quantity > maxStock) return state;
 
       const newItems = state.items.map(i =>
         i.id === itemId
@@ -160,9 +158,9 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     });
   },
 
-  incrementQuantity: (itemId: string) => {
+  incrementQuantity: (itemId: string, maxStock?: number) => {
     const item = get().items.find(i => i.id === itemId);
-    if (item) get().updateQuantity(itemId, item.quantity + 1);
+    if (item) get().updateQuantity(itemId, item.quantity + 1, maxStock);
   },
 
   decrementQuantity: (itemId: string) => {

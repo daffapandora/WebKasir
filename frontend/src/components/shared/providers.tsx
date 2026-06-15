@@ -10,11 +10,6 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
-    
-    // Seed initial mock data into Firebase if collections are empty
-    import('@/lib/firebase-service').then(({ seedInitialData }) => {
-      seedInitialData();
-    });
   }, [theme]);
 
   return (

@@ -44,17 +44,6 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  const fillDemo = (role: 'admin' | 'cashier') => {
-    if (role === 'admin') {
-      setEmail('budi@tokoku.id');
-      setPassword('demo123');
-    } else {
-      setEmail('dewi@tokoku.id');
-      setPassword('demo123');
-    }
-    setError('');
-  };
-
   if (!mounted) return null;
 
   return (
@@ -227,44 +216,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-8 p-4 rounded-xl border" style={{
-            background: 'var(--color-bg-elevated)',
-            borderColor: 'var(--color-border-light)',
-          }}>
-            <div className="flex items-center gap-2 mb-3">
-              <Monitor className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-accent)' }}>
-                Demo Mode
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => fillDemo('admin')}
-                className="btn btn-outline text-xs py-2"
-                type="button"
-              >
-                <div className="text-left">
-                  <p className="font-semibold">Admin</p>
-                  <p style={{ color: 'var(--color-text-muted)' }}>budi@tokoku.id</p>
-                </div>
-              </button>
-              <button
-                onClick={() => fillDemo('cashier')}
-                className="btn btn-outline text-xs py-2"
-                type="button"
-              >
-                <div className="text-left">
-                  <p className="font-semibold">Kasir</p>
-                  <p style={{ color: 'var(--color-text-muted)' }}>dewi@tokoku.id</p>
-                </div>
-              </button>
-            </div>
-            <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
-              Password: apa saja (demo mode)
-            </p>
-          </div>
         </div>
       </div>
     </div>

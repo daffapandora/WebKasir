@@ -5,7 +5,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Role, CashierPermissions } from '@/types';
-import { MOCK_USERS, DEFAULT_CASHIER_PERMISSIONS } from '@/lib/mock-data';
+import { DEFAULT_CASHIER_PERMISSIONS } from '@/lib/mock-data';
+import { supabase } from '@/lib/supabase';
 
 interface AuthStore {
   user: User | null;
@@ -38,28 +39,61 @@ export const useAuthStore = create<AuthStore>()(
       lastActivity: Date.now(),
 
       login: async (email: string, password: string) => {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
+        try {
+          if (!email || !password) {
+            return { success: false, error: 'Email dan password tidak boleh kosong' };
+          }
 
-        const user = MOCK_USERS.find(u => u.email === email);
-        if (!user) {
-          return { success: false, error: 'Email tidak ditemukan' };
-        }
-        // Demo: any password works
-        if (password.length < 1) {
-          return { success: false, error: 'Password tidak boleh kosong' };
-        }
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
 
-        set({
-          user,
-          isAuthenticated: true,
-          isLocked: false,
-          lastActivity: Date.now(),
-        });
-        return { success: true };
+          if (authError) {
+            return { success: false, error: authError.message };
+          }
+
+          // Fetch user profile from public.users table in database
+          const { data: userProfile, error: profileError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+          if (profileError || !userProfile) {
+            return { success: false, error: 'Profil pengguna tidak ditemukan di database' };
+          }
+
+          if (!userProfile.is_active) {
+            return { success: false, error: 'Akun Anda sedang dinonaktifkan' };
+          }
+
+          const user: User = {
+            id: Number(userProfile.id),
+            name: userProfile.name,
+            email: userProfile.email,
+            role: userProfile.role as Role,
+            branch_id: Number(userProfile.branch_id),
+            branch_name: userProfile.branch_name,
+            permissions: userProfile.permissions || [],
+            is_active: userProfile.is_active,
+            created_at: userProfile.created_at,
+          };
+
+          set({
+            user,
+            isAuthenticated: true,
+            isLocked: false,
+            lastActivity: Date.now(),
+          });
+          return { success: true };
+        } catch (err: any) {
+          return { success: false, error: err.message || 'Gagal masuk ke akun' };
+        }
       },
 
       logout: () => {
+        supabase.auth.signOut().catch(console.error);
         set({
           user: null,
           isAuthenticated: false,

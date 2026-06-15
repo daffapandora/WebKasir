@@ -13,8 +13,8 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
-    // Register Service Worker for offline support and background sync
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    // Register Service Worker for offline support and background sync (Only in Production)
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       const handleRegister = () => {
         navigator.serviceWorker.register('/sw.js')
           .then((reg) => {

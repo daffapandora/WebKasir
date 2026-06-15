@@ -300,4 +300,207 @@ class TransactionController extends Controller
             'data' => $shift
         ]);
     }
+
+    public function sync(Request $request)
+    {
+        $data = $request->validate([
+            'transactions' => 'required|array',
+            'transactions.*.uuid' => 'required|uuid',
+            'transactions.*.invoice_number' => 'required|string',
+            'transactions.*.customerId' => 'nullable|integer',
+            'transactions.*.customerName' => 'nullable|string',
+            'transactions.*.items' => 'required|array|min:1',
+            'transactions.*.items.*.product_id' => 'required|exists:products,id',
+            'transactions.*.items.*.quantity' => 'required|integer|min:1',
+            'transactions.*.items.*.price' => 'required|integer',
+            'transactions.*.items.*.discount_amount' => 'integer',
+            'transactions.*.items.*.subtotal' => 'required|integer',
+            'transactions.*.payments' => 'required|array|min:1',
+            'transactions.*.payments.*.method' => 'required|string',
+            'transactions.*.payments.*.amount' => 'required|integer',
+            'transactions.*.payments.*.reference' => 'nullable|string',
+            'transactions.*.subtotal' => 'required|integer',
+            'transactions.*.discountAmount' => 'integer',
+            'transactions.*.taxAmount' => 'required|integer',
+            'transactions.*.serviceCharge' => 'integer',
+            'transactions.*.total' => 'required|integer',
+            'transactions.*.change' => 'required|integer',
+            'transactions.*.notes' => 'nullable|string',
+            'transactions.*.shift_id' => 'nullable|integer',
+            'transactions.*.completed_at_client' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+        
+        // Find current open shift for this cashier
+        $shift = Shift::where('cashier_id', $user->id)
+            ->where('status', 'open')
+            ->first();
+
+        if (!$shift) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda harus membuka shift kasir terlebih dahulu.'
+            ], 422);
+        }
+
+        $syncedUuids = [];
+        $failedUuids = [];
+        
+        foreach ($data['transactions'] as $txData) {
+            DB::beginTransaction();
+            try {
+                // Check if transaction with this UUID already exists
+                $existing = Transaction::where('uuid', $txData['uuid'])->first();
+                
+                if ($existing) {
+                    // Already exists, skip inserting but mark as successfully synced
+                    DB::rollBack();
+                    $syncedUuids[] = $txData['uuid'];
+                    continue;
+                }
+
+                // Create Transaction using updateOrCreate
+                $transaction = Transaction::updateOrCreate(
+                    ['uuid' => $txData['uuid']],
+                    [
+                        'invoice_number' => $txData['invoice_number'],
+                        'branch_id' => $user->branch_id,
+                        'branch_name' => $user->branch ? $user->branch->name : 'Toko Pusat',
+                        'cashier_id' => $user->id,
+                        'cashier_name' => $user->name,
+                        'customer_id' => $txData['customerId'] ?? null,
+                        'customer_name' => $txData['customerName'] ?? null,
+                        'subtotal' => $txData['subtotal'],
+                        'discount_amount' => $txData['discountAmount'] ?? 0,
+                        'tax_amount' => $txData['taxAmount'],
+                        'service_charge' => $txData['serviceCharge'] ?? 0,
+                        'total' => $txData['total'],
+                        'change_amount' => $txData['change'],
+                        'status' => 'completed',
+                        'shift_id' => $txData['shift_id'] ?? $shift->id,
+                        'completed_at_client' => \Carbon\Carbon::parse($txData['completed_at_client']),
+                    ]
+                );
+
+                if ($transaction->wasRecentlyCreated) {
+                    // Save items & deduct stock
+                    foreach ($txData['items'] as $item) {
+                        $product = Product::find($item['product_id']);
+                        if (!$product) {
+                            throw new \Exception("Produk dengan ID {$item['product_id']} tidak ditemukan.");
+                        }
+
+                        $product->decrement('stock', $item['quantity']);
+
+                        // Deduct recipe ingredients stock if product uses recipe
+                        if ($product->use_recipe) {
+                            $productIngredients = $product->productIngredients()->with('ingredient')->get();
+                            foreach ($productIngredients as $pi) {
+                                $qtyNeeded = (float) $pi->quantity_needed * $item['quantity'];
+                                $ingredient = $pi->ingredient;
+
+                                if ($ingredient) {
+                                    $ingredient->decrement('stock', $qtyNeeded);
+
+                                    // Create usage log
+                                    \App\Models\IngredientUsageLog::create([
+                                        'ingredient_id' => $ingredient->id,
+                                        'product_id' => $product->id,
+                                        'transaction_id' => $transaction->id,
+                                        'quantity_used' => $qtyNeeded,
+                                        'notes' => 'Pengurangan otomatis penjualan POS (Sync Offline)',
+                                    ]);
+                                }
+                            }
+                        }
+
+                        $transaction->items()->create([
+                            'product_id' => $product->id,
+                            'product_name' => $product->name,
+                            'sku' => $product->sku,
+                            'quantity' => $item['quantity'],
+                            'unit_price' => $item['price'],
+                            'discount_amount' => $item['discount_amount'] ?? 0,
+                            'subtotal' => $item['subtotal'],
+                        ]);
+
+                        // Create stock movement
+                        StockMovement::create([
+                            'product_id' => $product->id,
+                            'type' => 'out',
+                            'quantity' => $item['quantity'],
+                            'reference' => $txData['invoice_number'],
+                            'reason' => 'Penjualan Kasir (Sync Offline)',
+                            'user_name' => $user->name,
+                            'branch_name' => $user->branch ? $user->branch->name : 'Toko Pusat',
+                        ]);
+                    }
+
+                    // Save payments
+                    $cashPaid = 0;
+                    $nonCashPaid = 0;
+                    foreach ($txData['payments'] as $payment) {
+                        $transaction->payments()->create([
+                            'method' => $payment['method'],
+                            'amount' => $payment['amount'],
+                            'reference' => $payment['reference'] ?? null,
+                        ]);
+
+                        if ($payment['method'] === 'cash') {
+                            $cashPaid += ($payment['amount'] - $txData['change']);
+                        } else {
+                            $nonCashPaid += $payment['amount'];
+                        }
+                    }
+
+                    // Update shift statistics
+                    $shift->increment('total_sales', $txData['total']);
+                    $shift->increment('total_transactions', 1);
+                    $shift->increment('total_cash_sales', $cashPaid);
+                    $shift->increment('total_non_cash_sales', $nonCashPaid);
+
+                    // Loyalty points (if customer exists)
+                    if ($txData['customerId']) {
+                        $customer = Customer::find($txData['customerId']);
+                        if ($customer) {
+                            $pointsEarned = floor($txData['total'] / 10000);
+                            if ($pointsEarned > 0) {
+                                $customer->increment('loyalty_points', $pointsEarned);
+                                $customer->loyaltyTransactions()->create([
+                                    'customer_name' => $customer->name,
+                                    'type' => 'earn',
+                                    'points' => $pointsEarned,
+                                    'balance_after' => $customer->loyalty_points,
+                                    'reference' => $txData['invoice_number'],
+                                    'notes' => 'Poin belanja (Sync Offline)',
+                                ]);
+                            }
+                            $customer->increment('total_spent', $txData['total']);
+                            $customer->increment('total_transactions', 1);
+                            $customer->update(['last_visit' => now()]);
+                        }
+                    }
+                }
+
+                DB::commit();
+                $syncedUuids[] = $txData['uuid'];
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                \Log::error("Failed to sync offline transaction {$txData['uuid']}: " . $e->getMessage());
+                $failedUuids[] = [
+                    'uuid' => $txData['uuid'],
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'synced' => $syncedUuids,
+            'failed' => $failedUuids,
+            'message' => count($syncedUuids) . ' transaksi berhasil disinkronkan. ' . count($failedUuids) . ' gagal.'
+        ]);
+    }
 }

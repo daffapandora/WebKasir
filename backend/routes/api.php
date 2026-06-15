@@ -42,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // POS cashier specific
     Route::prefix('pos')->group(function () {
         Route::post('/transactions', [TransactionController::class, 'store']);
+        Route::post('/transactions/sync', [TransactionController::class, 'sync']);
         Route::get('/transactions/history', [TransactionController::class, 'posHistory']);
         Route::post('/shifts/open', [TransactionController::class, 'openShift']);
         Route::post('/shifts/close', [TransactionController::class, 'closeShift']);

@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Transaction extends Model
 {
     protected $fillable = [
-        'invoice_number', 'branch_id', 'branch_name', 'cashier_id', 'cashier_name',
+        'uuid', 'invoice_number', 'branch_id', 'branch_name', 'cashier_id', 'cashier_name',
         'customer_id', 'customer_name', 'subtotal', 'discount_amount', 'tax_amount',
         'service_charge', 'total', 'change_amount', 'status', 'voided_by', 'void_reason',
-        'refunded_by', 'refund_reason', 'shift_id'
+        'refunded_by', 'refund_reason', 'shift_id', 'completed_at_client'
     ];
 
     protected $casts = [
@@ -20,6 +20,7 @@ class Transaction extends Model
         'service_charge' => 'integer',
         'total' => 'integer',
         'change_amount' => 'integer',
+        'completed_at_client' => 'datetime',
     ];
 
     public function items()

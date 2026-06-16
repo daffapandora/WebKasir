@@ -74,6 +74,28 @@ export async function getBranches(): Promise<Branch[]> {
   return data || [];
 }
 
+export async function addBranch(branch: Omit<Branch, "id">): Promise<Branch> {
+  const id = Date.now();
+  const newBranch: Branch = {
+    ...branch,
+    id,
+    is_active: branch.is_active ?? true,
+  };
+  const { error } = await supabase.from("branches").insert([cleanData(newBranch)]);
+  if (error) throw error;
+  return newBranch;
+}
+
+export async function updateBranch(id: number, data: Partial<Branch>): Promise<void> {
+  const { error } = await supabase.from("branches").update(cleanData(data)).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteBranch(id: number): Promise<void> {
+  const { error } = await supabase.from("branches").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ─── Categories ───
 export async function getCategories(): Promise<Category[]> {
   const { data, error } = await supabase.from("categories").select("*");

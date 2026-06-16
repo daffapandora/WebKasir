@@ -74,12 +74,13 @@ export async function getBranches(): Promise<Branch[]> {
   return data || [];
 }
 
-export async function addBranch(branch: Omit<Branch, "id">): Promise<Branch> {
+export async function addBranch(branch: Omit<Branch, "id" | "created_at">): Promise<Branch> {
   const id = Date.now();
   const newBranch: Branch = {
     ...branch,
     id,
     is_active: branch.is_active ?? true,
+    created_at: new Date().toISOString()
   };
   const { error } = await supabase.from("branches").insert([cleanData(newBranch)]);
   if (error) throw error;

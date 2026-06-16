@@ -365,7 +365,7 @@ export async function adjustStock(
   // Log audit trail
   const newAudit: AuditLog = {
     id: Date.now(),
-    user_id: Date.now(),
+    user_id: null,
     user_name: userName,
     action: "adjust_stock",
     module: "inventory",
@@ -759,7 +759,7 @@ export async function logAuditTrail(
   const id = Date.now();
   const auditData = {
     id,
-    user_id: id,
+    user_id: null,
     user_name: userName,
     action,
     module,

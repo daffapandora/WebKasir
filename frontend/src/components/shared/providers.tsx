@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useUIStore } from '@/store/ui-store';
 import { ToastContainer } from '@/components/ui/toast';
 import { AdminPinModal } from '@/components/shared/admin-pin-modal';
+import { seedInitialData } from '@/lib/firebase-service';
 
 export function Providers({ children }: { children: ReactNode }) {
   const theme = useUIStore(s => s.theme);
@@ -13,6 +14,10 @@ export function Providers({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
+    // Seed initial data to Supabase if database tables are empty
+    seedInitialData().catch(err => {
+      console.error('Failed to seed initial data:', err);
+    });
     // Register Service Worker for offline support and background sync (Only in Production)
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       const handleRegister = () => {

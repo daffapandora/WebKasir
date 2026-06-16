@@ -364,7 +364,7 @@ export interface CashierPermissions {
 // ─── Audit Log ───
 export interface AuditLog {
   id: number;
-  user_id: number;
+  user_id?: number | null;
   user_name: string;
   action: string;
   module: string;

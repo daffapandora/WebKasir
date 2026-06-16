@@ -6,7 +6,11 @@
  * Token Sanctum diambil dari localStorage (set oleh auth-store).
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
+let baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+if (!baseUrl.endsWith('/api')) {
+  baseUrl = `${baseUrl.replace(/\/$/, '')}/api`;
+}
+const BASE_URL = baseUrl;
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;

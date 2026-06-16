@@ -1,5 +1,16 @@
 import type { NextConfig } from "next";
 
+let backendDomain = "";
+try {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    backendDomain = new URL(process.env.NEXT_PUBLIC_API_URL).origin;
+  }
+} catch (e) {
+  // Ignore invalid URL
+}
+
+const cspHeader = `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data: https://*.supabase.co; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com${backendDomain ? ' ' + backendDomain : ''}; frame-src 'self' https://challenges.cloudflare.com;`;
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -34,7 +45,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data: https://*.supabase.co; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com;",
+            value: cspHeader,
           },
         ],
       },

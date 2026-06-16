@@ -1,0 +1,5 @@
+# nixpacks.toml for Laravel backend deployment on Railway
+
+[variables]
+# Tell Nixpacks to set the web server document root to the Laravel public directory
+NIXPACKS_PHP_ROOT_DIR = "/app/public"

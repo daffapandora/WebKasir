@@ -36,7 +36,7 @@ export interface Branch {
   address: string;
   phone: string;
   is_active: boolean;
-  created_at: string;
+  created_at?: string;
 }
 
 // ─── Categories ───

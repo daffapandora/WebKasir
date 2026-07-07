@@ -21,11 +21,16 @@ class User extends Authenticatable
         'branch_name',
         'permissions',
         'is_active',
+        'lock_pin',
+        'admin_pin',
+        'tenant_id',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'lock_pin',
+        'admin_pin',
     ];
 
     protected $casts = [

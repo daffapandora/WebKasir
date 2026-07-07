@@ -1,30 +1,48 @@
 -- Enable necessary extensions
 create extension if not exists "uuid-ossp";
 
+-- 0. Penyewa (tenants)
+create table if not exists tenants (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  plan text not null default 'basic',
+  is_active boolean not null default true,
+  expires_at timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- 1. Cabang (branches)
 create table if not exists branches (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   address text not null,
   phone text not null,
   is_active boolean not null default true,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 2. Kategori (categories)
 create table if not exists categories (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   slug text not null unique,
   icon text,
   color text,
   product_count integer default 0,
-  is_active boolean not null default true
+  is_active boolean not null default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 3. Produk (products)
 create table if not exists products (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   sku text not null unique,
   barcode text not null,
@@ -41,12 +59,14 @@ create table if not exists products (
   use_recipe boolean not null default false,
   hpp_auto numeric(12,2) default 0.00,
   ingredients jsonb default '[]'::jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 4. Pelanggan (customers)
 create table if not exists customers (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   phone text not null,
   email text,
@@ -57,37 +77,46 @@ create table if not exists customers (
   total_transactions integer not null default 0,
   last_visit timestamp with time zone,
   is_active boolean not null default true,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 5. Karyawan (users)
 create table if not exists users (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   email text not null unique,
+  password text not null,
   role text not null,
   branch_id bigint references branches(id) on delete set null,
   branch_name text not null,
   permissions text[] default '{}'::text[],
   is_active boolean not null default true,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  lock_pin text,
+  admin_pin text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 6. Supplier (suppliers)
 create table if not exists suppliers (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   contact_person text not null,
   phone text not null,
   email text,
   address text,
   is_active boolean not null default true,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 7. Bahan Baku (ingredients)
 create table if not exists ingredients (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   sku text,
   category_id bigint references categories(id) on delete set null,
@@ -108,18 +137,22 @@ create table if not exists ingredients (
 -- 8. Konfigurasi Pajak (tax_configs)
 create table if not exists tax_configs (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   rate numeric(5,2) not null,
   type text not null,
   is_inclusive boolean not null default false,
   apply_before_discount boolean not null default false,
   is_active boolean not null default true,
-  label text not null
+  label text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 9. Diskon (discounts)
 create table if not exists discounts (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   name text not null,
   code text,
   type text not null,
@@ -135,12 +168,14 @@ create table if not exists discounts (
   usage_limit integer,
   usage_count integer not null default 0,
   is_active boolean not null default true,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 10. Shift Kasir (shifts)
 create table if not exists shifts (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   cashier_id bigint references users(id) on delete set null,
   cashier_name text not null,
   branch_id bigint references branches(id) on delete set null,
@@ -156,12 +191,15 @@ create table if not exists shifts (
   status text not null default 'open',
   opened_at timestamp with time zone default timezone('utc'::text, now()) not null,
   closed_at timestamp with time zone,
-  notes text
+  notes text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 11. Transaksi (transactions)
 create table if not exists transactions (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   invoice_number text not null unique,
   branch_id bigint references branches(id) on delete set null,
   branch_name text not null,
@@ -182,12 +220,14 @@ create table if not exists transactions (
   refund_reason text,
   shift_id bigint references shifts(id) on delete set null,
   payments jsonb not null default '[]'::jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 12. Item Transaksi (transaction_items)
 create table if not exists transaction_items (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   transaction_id bigint references transactions(id) on delete cascade,
   product_id bigint references products(id) on delete set null,
   product_name text not null,
@@ -195,12 +235,15 @@ create table if not exists transaction_items (
   quantity integer not null default 1,
   unit_price numeric(12,2) not null default 0.00,
   discount_amount numeric(12,2) not null default 0.00,
-  subtotal numeric(12,2) not null default 0.00
+  subtotal numeric(12,2) not null default 0.00,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 13. Mutasi Stok (stock_movements)
 create table if not exists stock_movements (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   product_id bigint references products(id) on delete set null,
   product_name text not null,
   type text not null,
@@ -209,35 +252,41 @@ create table if not exists stock_movements (
   reason text,
   user_name text not null,
   branch_name text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 14. Log Penggunaan Bahan Baku (ingredient_usage_logs)
 create table if not exists ingredient_usage_logs (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   ingredient_id bigint references ingredients(id) on delete cascade,
   product_id bigint references products(id) on delete set null,
   transaction_id bigint references transactions(id) on delete set null,
   quantity_used numeric(10,3) not null,
   notes text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 15. Log Limbah (waste_logs)
 create table if not exists waste_logs (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   user_id bigint references users(id) on delete set null,
   user_name text not null,
   total_loss_amount numeric(12,2) not null default 0.00,
   logged_at timestamp with time zone not null,
   notes text,
   items jsonb not null default '[]'::jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 16. PO (purchase_orders)
 create table if not exists purchase_orders (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   po_number text not null unique,
   supplier_id bigint references suppliers(id) on delete set null,
   supplier_name text not null,
@@ -247,12 +296,14 @@ create table if not exists purchase_orders (
   notes text,
   created_by text not null,
   items jsonb not null default '[]'::jsonb,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- 17. Log Audit (audit_logs)
 create table if not exists audit_logs (
   id bigint primary key,
+  tenant_id uuid references tenants(id) on delete cascade,
   user_id bigint references users(id) on delete set null,
   user_name text not null,
   action text not null,
@@ -262,10 +313,12 @@ create table if not exists audit_logs (
   new_value text,
   ip_address text,
   branch_id bigint,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 -- Enable RLS for all tables
+alter table tenants enable row level security;
 alter table branches enable row level security;
 alter table categories enable row level security;
 alter table products enable row level security;
@@ -286,6 +339,7 @@ alter table audit_logs enable row level security;
 
 -- Create simple RLS policies allowing all operations for authenticated and anonymous users
 -- (Typical for local/intranet Admin & POS dashboard clients)
+create policy "Allow all tenants" on tenants for all to anon, authenticated using (true) with check (true);
 create policy "Allow all branches" on branches for all to anon, authenticated using (true) with check (true);
 create policy "Allow all categories" on categories for all to anon, authenticated using (true) with check (true);
 create policy "Allow all products" on products for all to anon, authenticated using (true) with check (true);

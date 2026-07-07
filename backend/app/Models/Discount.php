@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToTenant;
 
 class Discount extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
-        'name', 'code', 'type', 'value', 'scope', 'min_purchase', 'max_discount',
+        'tenant_id', 'name', 'code', 'type', 'value', 'scope', 'min_purchase', 'max_discount',
         'membership_only', 'membership_tier', 'product_ids', 'start_date', 'end_date',
         'usage_limit', 'usage_count', 'is_active'
     ];

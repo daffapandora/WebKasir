@@ -1,10 +1,17 @@
 # Local configuration files
 backend/.env
-frontend/.env.local
+backend/.env.*
+frontend/.env
+frontend/.env.*
+*.env
+*.env.local
+*.env.production
+*.env.staging
 .DS_Store
 
 # Logs
 backend/storage/logs/laravel.log
+backend/storage/logs/*.log
 
 # Build files and dependencies
 node_modules/
@@ -14,3 +21,14 @@ frontend/.next/
 frontend/out/
 backend/vendor/
 backend/bootstrap/cache/*
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+
+# Security — never commit keys or certs
+*.pem
+*.key
+*.p12

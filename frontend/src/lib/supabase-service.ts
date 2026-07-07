@@ -177,9 +177,27 @@ export async function deleteCustomer(id: number): Promise<void> {
 
 // ─── Employees (Users) CRUD ───
 export async function getEmployees(): Promise<Employee[]> {
-  const { data, error } = await supabase.from("users").select("*");
-  if (error) throw error;
-  return (data || []).map(raw => ({
+  const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
+  let apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  if (!apiBase.endsWith('/api')) {
+    apiBase = `${apiBase.replace(/\/$/, '')}/api`;
+  }
+
+  const res = await fetch(`${apiBase}/employees`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+    throw new Error(errorData.message || 'Gagal memuat data karyawan');
+  }
+
+  const json = await res.json();
+  return (json.data || []).map((raw: any) => ({
     id: raw.id,
     user_id: raw.id,
     name: raw.name,
@@ -189,48 +207,109 @@ export async function getEmployees(): Promise<Employee[]> {
     branch_name: raw.branch_name,
     is_active: raw.is_active,
     created_at: raw.created_at,
+    has_lock_pin: raw.has_lock_pin,
+    has_admin_pin: raw.has_admin_pin,
   }));
 }
 
-export async function addEmployee(employee: Omit<Employee, "id" | "created_at" | "user_id">): Promise<Employee> {
-  const id = Date.now();
-  const newEmployeeUser = {
-    id,
-    name: employee.name,
-    email: employee.email,
-    role: employee.role,
-    branch_id: employee.branch_id,
-    branch_name: employee.branch_name,
-    permissions: employee.role === 'cashier' ? ['sales.create'] : ['*'],
-    is_active: employee.is_active,
-    created_at: new Date().toISOString(),
-  };
-  const { error } = await supabase.from("users").insert([cleanData(newEmployeeUser)]);
-  if (error) throw error;
+export async function addEmployee(employee: Omit<Employee, "id" | "created_at" | "user_id"> & { password?: string }): Promise<Employee> {
+  // Route through Laravel API which validates and hashes the password
+  // This prevents SEC-001: users created without password
+  const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
+  let apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  if (!apiBase.endsWith('/api')) {
+    apiBase = `${apiBase.replace(/\/$/, '')}/api`;
+  }
+
+  const res = await fetch(`${apiBase}/employees`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      name: employee.name,
+      email: employee.email,
+      password: employee.password || 'TempPass123!', // Will be required to change on first login
+      role: employee.role,
+      branch_id: employee.branch_id,
+      is_active: employee.is_active,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+    throw new Error(errorData.message || 'Gagal menambahkan karyawan');
+  }
+
+  const json = await res.json();
+  const userData = json.data;
+
   return {
-    ...employee,
-    id,
-    user_id: id,
-    created_at: newEmployeeUser.created_at
+    id: userData.id,
+    user_id: userData.id,
+    name: userData.name,
+    email: userData.email,
+    role: userData.role,
+    branch_id: userData.branch_id,
+    branch_name: employee.branch_name,
+    is_active: userData.is_active,
+    created_at: userData.created_at || new Date().toISOString(),
   };
 }
 
-export async function updateEmployee(id: number, data: Partial<Employee>): Promise<void> {
-  const updateData: any = {};
-  if (data.name !== undefined) updateData.name = data.name;
-  if (data.email !== undefined) updateData.email = data.email;
-  if (data.role !== undefined) updateData.role = data.role;
-  if (data.branch_id !== undefined) updateData.branch_id = data.branch_id;
-  if (data.branch_name !== undefined) updateData.branch_name = data.branch_name;
-  if (data.is_active !== undefined) updateData.is_active = data.is_active;
-  
-  const { error } = await supabase.from("users").update(cleanData(updateData)).eq("id", id);
-  if (error) throw error;
+export async function updateEmployee(id: number, data: Partial<Employee> & { password?: string }): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
+  let apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  if (!apiBase.endsWith('/api')) {
+    apiBase = `${apiBase.replace(/\/$/, '')}/api`;
+  }
+
+  const res = await fetch(`${apiBase}/employees/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      name: data.name,
+      email: data.email,
+      password: data.password || undefined,
+      role: data.role,
+      branch_id: data.branch_id,
+      is_active: data.is_active,
+      lock_pin: data.lock_pin,
+      admin_pin: data.admin_pin,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+    throw new Error(errorData.message || 'Gagal memperbarui karyawan');
+  }
 }
 
 export async function deleteEmployee(id: number): Promise<void> {
-  const { error } = await supabase.from("users").delete().eq("id", id);
-  if (error) throw error;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
+  let apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  if (!apiBase.endsWith('/api')) {
+    apiBase = `${apiBase.replace(/\/$/, '')}/api`;
+  }
+
+  const res = await fetch(`${apiBase}/employees/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ message: `HTTP ${res.status}` }));
+    throw new Error(errorData.message || 'Gagal menghapus karyawan');
+  }
 }
 
 // ─── Discounts CRUD ───

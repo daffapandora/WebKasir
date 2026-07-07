@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use App\Models\Traits\BelongsToTenant;
 
 class Ingredient extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, BelongsToTenant;
 
     protected $fillable = [
-        'name', 'sku', 'category_id', 'supplier_id',
+        'tenant_id', 'name', 'sku', 'category_id', 'supplier_id',
         'unit', 'stock', 'min_stock', 'cost_price', 'avg_cost_price',
         'expiry_date', 'storage_location', 'is_active', 'notes',
     ];

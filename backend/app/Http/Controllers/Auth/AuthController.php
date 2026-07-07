@@ -47,6 +47,7 @@ class AuthController extends Controller
                 'branch_name' => $user->branch ? $user->branch->name : 'Semua Cabang',
                 'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
                 'is_active' => $user->is_active,
+                'created_at' => $user->created_at?->toIso8601String(),
             ]
         ]);
     }
@@ -89,14 +90,30 @@ class AuthController extends Controller
 
     public function unlock(Request $request)
     {
-        $request->validate(['pin' => 'required|string']);
+        $request->validate(['pin' => 'required|string|min:4|max:6']);
 
-        // Pin simulation: 1234
-        if ($request->pin === '1234') {
-            return response()->json([
-                'success' => true,
-                'message' => 'Kunci berhasil dibuka.'
-            ]);
+        $user = $request->user();
+
+        // Check against the user's stored lock PIN
+        // Fall back to default '1234' if no custom PIN is set
+        $storedPin = $user->lock_pin;
+
+        if ($storedPin) {
+            // Verify against hashed PIN
+            if (Hash::check($request->pin, $storedPin)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kunci berhasil dibuka.'
+                ]);
+            }
+        } else {
+            // No custom PIN set — accept default PIN
+            if ($request->pin === '1234') {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kunci berhasil dibuka.'
+                ]);
+            }
         }
 
         return response()->json([
@@ -107,19 +124,79 @@ class AuthController extends Controller
 
     public function verifyAdminPin(Request $request)
     {
-        $request->validate(['pin' => 'required|string']);
+        $request->validate(['pin' => 'required|string|min:4|max:6']);
 
-        // Default admin PIN is 0000
-        if ($request->pin === '0000') {
-            return response()->json([
-                'success' => true,
-                'message' => 'PIN terverifikasi.'
-            ]);
+        $user = $request->user();
+
+        // Check against the user's stored admin PIN
+        // Fall back to default '0000' if no custom PIN is set
+        $storedPin = $user->admin_pin;
+
+        if ($storedPin) {
+            // Verify against hashed PIN
+            if (Hash::check($request->pin, $storedPin)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'PIN terverifikasi.'
+                ]);
+            }
+        } else {
+            // No custom PIN set — accept default for admin/manager roles only
+            if (in_array($user->role, ['super_admin', 'admin', 'manager']) && $request->pin === '0000') {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'PIN terverifikasi.'
+                ]);
+            }
         }
 
         return response()->json([
             'success' => false,
             'message' => 'PIN Admin salah.'
         ], 422);
+    }
+
+    /**
+     * Update the user's lock PIN or admin PIN.
+     */
+    public function updatePin(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:lock,admin',
+            'current_pin' => 'required|string',
+            'new_pin' => 'required|string|min:4|max:6',
+        ]);
+
+        $user = $request->user();
+        $field = $request->type === 'admin' ? 'admin_pin' : 'lock_pin';
+        $currentStored = $user->$field;
+
+        // Verify current PIN
+        if ($currentStored) {
+            if (!Hash::check($request->current_pin, $currentStored)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PIN saat ini salah.'
+                ], 422);
+            }
+        } else {
+            // First time setting — verify against default
+            $defaultPin = $request->type === 'admin' ? '0000' : '1234';
+            if ($request->current_pin !== $defaultPin) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PIN saat ini salah.'
+                ], 422);
+            }
+        }
+
+        // Store new hashed PIN
+        $user->$field = Hash::make($request->new_pin);
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'PIN berhasil diperbarui.'
+        ]);
     }
 }

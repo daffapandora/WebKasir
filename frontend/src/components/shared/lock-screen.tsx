@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import { Lock, Store, User } from 'lucide-react';
 
@@ -8,14 +8,25 @@ export function LockScreen() {
   const { user, unlock } = useAuthStore();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!unlock(pin)) {
-      setError('PIN salah');
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const success = await unlock(pin);
+      if (!success) {
+        setError('PIN salah');
+        setPin('');
+      }
+    } catch {
+      setError('Gagal memverifikasi PIN');
       setPin('');
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [pin, unlock, isLoading]);
 
   const handleDigit = (digit: string) => {
     if (pin.length < 6) {
@@ -94,10 +105,10 @@ export function LockScreen() {
 
           <button
             type="submit"
-            disabled={pin.length < 4}
+            disabled={pin.length < 4 || isLoading}
             className="btn btn-primary btn-lg w-full mt-6"
           >
-            Buka Kunci
+            {isLoading ? 'Memverifikasi...' : 'Buka Kunci'}
           </button>
 
           <p className="text-center text-xs text-white/30 mt-4">

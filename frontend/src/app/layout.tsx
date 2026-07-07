@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   keywords: "POS, kasir, point of sale, retail, Indonesia, toko",
 };
 
+import { ErrorBoundary } from "@/components/shared/error-boundary";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,9 +25,11 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers>
-          {children}
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            {children}
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   );

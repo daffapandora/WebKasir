@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToTenant;
 
 class Shift extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
-        'cashier_id', 'cashier_name', 'branch_id', 'branch_name',
+        'tenant_id', 'cashier_id', 'cashier_name', 'branch_id', 'branch_name',
         'opening_cash', 'closing_cash', 'expected_cash', 'difference',
         'total_sales', 'total_transactions', 'total_cash_sales', 'total_non_cash_sales',
         'status', 'opened_at', 'closed_at', 'notes'

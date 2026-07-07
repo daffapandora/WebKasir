@@ -323,6 +323,10 @@ export interface Employee {
   is_active: boolean;
   last_login?: string;
   created_at: string;
+  lock_pin?: string;
+  admin_pin?: string;
+  has_lock_pin?: boolean;
+  has_admin_pin?: boolean;
 }
 
 export interface CashierPermissions {

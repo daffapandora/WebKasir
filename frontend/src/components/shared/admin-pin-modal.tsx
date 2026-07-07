@@ -10,6 +10,7 @@ export function AdminPinModal() {
   const verifyAdminPin = useAuthStore(s => s.verifyAdminPin);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -22,17 +23,28 @@ export function AdminPinModal() {
 
   if (!pinModalOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyAdminPin(pin)) {
-      if (pinCallback) pinCallback(true);
-      useUIStore.setState({ pinModalOpen: false, pinCallback: null });
-      setPin('');
-      setError('');
-    } else {
-      setError('PIN admin salah');
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const isValid = await verifyAdminPin(pin);
+      if (isValid) {
+        if (pinCallback) pinCallback(true);
+        useUIStore.setState({ pinModalOpen: false, pinCallback: null });
+        setPin('');
+        setError('');
+      } else {
+        setError('PIN admin salah');
+        setPin('');
+        inputRef.current?.focus();
+      }
+    } catch {
+      setError('Gagal memverifikasi PIN');
       setPin('');
       inputRef.current?.focus();
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -18,6 +18,7 @@ use App\Http\Controllers\Supplier\SupplierController;
 use App\Http\Controllers\Tax\TaxController;
 use App\Http\Controllers\Setting\SettingController;
 use App\Http\Controllers\AccessControl\AccessControlController;
+use App\Http\Controllers\Category\CategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,12 +30,13 @@ use App\Http\Controllers\AccessControl\AccessControlController;
 Route::post('/login', [AuthController::class, 'login']);
 
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/lock', [AuthController::class, 'lock']);
     Route::post('/unlock', [AuthController::class, 'unlock']);
     Route::post('/verify-pin', [AuthController::class, 'verifyAdminPin']);
+    Route::post('/update-pin', [AuthController::class, 'updatePin']);
 
     // Admin & Cashier common route: branches
     Route::get('/branches', [BranchController::class, 'index']);
@@ -51,6 +53,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Products & Inventory (existing)
     Route::apiResource('products', ProductController::class);
+    Route::apiResource('categories', CategoryController::class);
     Route::post('/products/{product}/stock-adjustment', [InventoryController::class, 'adjustStock']);
     Route::get('/inventory/movements', [InventoryController::class, 'movements']);
     Route::get('/inventory/low-stock', [InventoryController::class, 'lowStockAlerts']);

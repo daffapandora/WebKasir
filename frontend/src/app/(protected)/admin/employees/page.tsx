@@ -44,6 +44,9 @@ export default function EmployeesPage() {
   const [formPhone, setFormPhone] = useState('');
   const [formRole, setFormRole] = useState<Role>('cashier');
   const [formBranchId, setFormBranchId] = useState<number | ''>('');
+  const [formPassword, setFormPassword] = useState('');
+  const [formLockPin, setFormLockPin] = useState('');
+  const [formAdminPin, setFormAdminPin] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // A4: Delete confirm
@@ -92,6 +95,9 @@ export default function EmployeesPage() {
   const openAddForm = () => {
     setEditingEmployee(null);
     setFormName(''); setFormEmail(''); setFormPhone('');
+    setFormPassword('');
+    setFormLockPin('');
+    setFormAdminPin('');
     setFormRole('cashier');
     setFormBranchId(branches[0]?.id || '');
     setPhoneError('');
@@ -102,6 +108,9 @@ export default function EmployeesPage() {
     setEditingEmployee(emp);
     setFormName(emp.name); setFormEmail(emp.email);
     setFormPhone(emp.phone || '');
+    setFormPassword('');
+    setFormLockPin('');
+    setFormAdminPin('');
     setFormRole(emp.role);
     setFormBranchId(emp.branch_id);
     setPhoneError('');
@@ -128,6 +137,26 @@ export default function EmployeesPage() {
       addToast('warning', 'Nama, Email, dan Cabang wajib diisi');
       return;
     }
+    // Validate password for new employees
+    if (!editingEmployee && (!formPassword || formPassword.length < 6)) {
+      addToast('warning', 'Password wajib diisi minimal 6 karakter untuk karyawan baru');
+      return;
+    }
+    // Validate optional password edit
+    if (editingEmployee && formPassword && formPassword.length < 6) {
+      addToast('warning', 'Password minimal 6 karakter');
+      return;
+    }
+    // Validate PIN lengths if filled
+    if (formLockPin && (formLockPin.length < 4 || formLockPin.length > 6 || !/^\d+$/.test(formLockPin))) {
+      addToast('warning', 'PIN Layar (Lock) harus berupa 4-6 digit angka');
+      return;
+    }
+    if (formAdminPin && (formAdminPin.length < 4 || formAdminPin.length > 6 || !/^\d+$/.test(formAdminPin))) {
+      addToast('warning', 'PIN Supervisor (Admin) harus berupa 4-6 digit angka');
+      return;
+    }
+
     // A7: Validate phone
     if (!validatePhone(formPhone)) return;
 
@@ -135,11 +164,18 @@ export default function EmployeesPage() {
       setSubmitting(true);
       const br = branches.find(b => b.id === Number(formBranchId));
       const payload = {
-        name: formName, email: formEmail, phone: formPhone,
-        role: formRole, branch_id: Number(formBranchId),
+        name: formName,
+        email: formEmail,
+        phone: formPhone,
+        role: formRole,
+        branch_id: Number(formBranchId),
         branch_name: br ? br.name : 'Toko Pusat',
         is_active: editingEmployee ? editingEmployee.is_active : true,
+        password: formPassword || undefined,
+        lock_pin: formLockPin || undefined,
+        admin_pin: formAdminPin || undefined,
       };
+
       if (editingEmployee) {
         await updateEmployee(editingEmployee.id, payload);
         await logAuditTrail(user?.name || 'System', 'update', 'employees', `Mengubah data karyawan: ${formName}`);
@@ -151,9 +187,9 @@ export default function EmployeesPage() {
       }
       setShowForm(false);
       loadData();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      addToast('error', 'Gagal menyimpan data karyawan');
+      addToast('error', err.message || 'Gagal menyimpan data karyawan');
     } finally {
       setSubmitting(false);
     }
@@ -294,6 +330,34 @@ export default function EmployeesPage() {
                         <span style={{ color: 'var(--color-text-muted)' }}>Status</span>
                         <span className={cn('badge', emp.is_active ? 'badge-success' : 'badge-danger')}>{emp.is_active ? 'Aktif' : 'Nonaktif'}</span>
                       </div>
+                      <div className="flex justify-between items-center pt-2 mt-1 border-t border-dashed border-gray-200 dark:border-gray-800">
+                        <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                          <Key className="w-3 h-3" /> PIN Kasir
+                        </span>
+                        <span className={cn(
+                          'text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase',
+                          emp.has_lock_pin 
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400' 
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400'
+                        )}>
+                          {emp.has_lock_pin ? 'Terpasang' : 'Belum Diatur'}
+                        </span>
+                      </div>
+                      {['super_admin', 'admin', 'manager'].includes(emp.role) && (
+                        <div className="flex justify-between items-center mt-1">
+                          <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-text-muted)' }}>
+                            <Shield className="w-3 h-3" /> PIN Supervisor
+                          </span>
+                          <span className={cn(
+                            'text-[10px] px-1.5 py-0.5 rounded-full font-semibold uppercase',
+                            emp.has_admin_pin 
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400' 
+                              : 'bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400'
+                          )}>
+                            {emp.has_admin_pin ? 'Terpasang' : 'Belum Diatur'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -457,6 +521,69 @@ export default function EmployeesPage() {
                   <option value="">Pilih Cabang...</option>
                   {branches.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}
                 </select>
+              </div>
+
+              {/* Password & PIN Fields */}
+              <div className="pt-2 border-t border-dashed" style={{ borderColor: 'var(--color-border-light)' }}>
+                <h4 className="text-xs font-bold mb-3 uppercase tracking-wider" style={{ color: 'var(--color-text-secondary)' }}>Kredensial & Keamanan PIN</h4>
+                
+                <div className="space-y-4">
+                  {/* Password */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">
+                      {editingEmployee ? 'Password Baru' : 'Password Login *'}
+                      {editingEmployee && <span className="text-[10px] font-normal" style={{ color: 'var(--color-text-muted)' }}> (Kosongkan jika tidak diubah)</span>}
+                    </label>
+                    <input
+                      type="password"
+                      value={formPassword}
+                      onChange={e => setFormPassword(e.target.value)}
+                      className="input font-mono"
+                      placeholder={editingEmployee ? '••••••••' : 'Minimal 6 karakter'}
+                      required={!editingEmployee}
+                    />
+                  </div>
+
+                  {/* Lock Screen PIN (Cashier PIN) */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1">
+                      PIN Kasir / Lock Screen
+                      {editingEmployee && <span className="text-[10px] font-normal" style={{ color: 'var(--color-text-muted)' }}> (Kosongkan jika tidak diubah)</span>}
+                    </label>
+                    <input
+                      type="password"
+                      maxLength={6}
+                      value={formLockPin}
+                      onChange={e => setFormLockPin(e.target.value.replace(/\D/g, ''))}
+                      className="input text-center font-mono tracking-[0.25em]"
+                      placeholder={editingEmployee ? '••••' : '4-6 Digit Angka'}
+                    />
+                    <p className="text-[10px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                      Digunakan oleh karyawan untuk membuka kunci layar aplikasi POS.
+                    </p>
+                  </div>
+
+                  {/* Supervisor PIN (Admin/Manager PIN) */}
+                  {['super_admin', 'admin', 'manager'].includes(formRole) && (
+                    <div className="animate-slide-up">
+                      <label className="block text-xs font-semibold mb-1">
+                        PIN Supervisor / Otorisasi Admin
+                        {editingEmployee && <span className="text-[10px] font-normal" style={{ color: 'var(--color-text-muted)' }}> (Kosongkan jika tidak diubah)</span>}
+                      </label>
+                      <input
+                        type="password"
+                        maxLength={6}
+                        value={formAdminPin}
+                        onChange={e => setFormAdminPin(e.target.value.replace(/\D/g, ''))}
+                        className="input text-center font-mono tracking-[0.25em]"
+                        placeholder={editingEmployee ? '••••' : '4-6 Digit Angka'}
+                      />
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                        Digunakan untuk menyetujui void transaksi, diskon khusus, atau tindakan manajerial lainnya.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="pt-4 border-t flex justify-end gap-2" style={{ borderColor: 'var(--color-border-light)' }}>

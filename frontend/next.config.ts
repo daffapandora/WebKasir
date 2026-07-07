@@ -9,7 +9,7 @@ try {
   // Ignore invalid URL
 }
 
-const cspHeader = `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data: https://*.supabase.co; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com${backendDomain ? ' ' + backendDomain : ''}; frame-src 'self' https://challenges.cloudflare.com;`;
+const cspHeader = `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' blob: data: https://*.supabase.co https://vercel.com https://vercel.live; font-src 'self' data: https://fonts.gstatic.com https://assets.vercel.com; connect-src 'self' https://*.supabase.co https://challenges.cloudflare.com https://vercel.live wss://*.vercel.live${backendDomain ? ' ' + backendDomain : ''}; frame-src 'self' https://challenges.cloudflare.com https://vercel.live;`;
 
 const nextConfig: NextConfig = {
   images: {

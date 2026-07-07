@@ -7,7 +7,14 @@ import { LockScreen } from '@/components/shared/lock-screen';
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLocked, user, lastActivity, lock, cashierPermissions, updateLastActivity } = useAuthStore();
+  const { isAuthenticated, isLocked, user, lastActivity, lock, cashierPermissions, updateLastActivity, checkSessionFreshness } = useAuthStore();
+
+  // Check session freshness on mount
+  useEffect(() => {
+    if (isAuthenticated && !checkSessionFreshness()) {
+      router.replace('/login');
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirect if not authenticated
   useEffect(() => {

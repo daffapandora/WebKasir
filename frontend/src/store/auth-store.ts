@@ -1,31 +1,48 @@
 /* ═══════════════════════════════════════════════════
-   Auth Store — Zustand
+   Auth Store — Zustand + Laravel Sanctum
    ═══════════════════════════════════════════════════ */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Role, CashierPermissions } from '@/types';
 import { DEFAULT_CASHIER_PERMISSIONS } from '@/lib/mock-data';
-import { supabase } from '@/lib/supabase';
+
+/* ── Session expiry durations (ms) ── */
+const SESSION_TTL: Record<string, number> = {
+  super_admin: 8 * 60 * 60 * 1000,  // 8 hours
+  admin:       8 * 60 * 60 * 1000,
+  manager:     8 * 60 * 60 * 1000,
+  cashier:    12 * 60 * 60 * 1000,  // 12 hours
+};
+
+/* ── API base URL ── */
+function getApiBaseUrl(): string {
+  let base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+  if (!base.endsWith('/api')) {
+    base = `${base.replace(/\/$/, '')}/api`;
+  }
+  return base;
+}
 
 interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
   isLocked: boolean;
-  lockPin: string;
   cashierPermissions: CashierPermissions;
   lastActivity: number;
+  lastLoginAt: number | null;
 
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   lock: () => void;
-  unlock: (pin: string) => boolean;
-  verifyAdminPin: (pin: string) => boolean;
+  unlock: (pin: string) => Promise<boolean>;
+  verifyAdminPin: (pin: string) => Promise<boolean>;
   updateLastActivity: () => void;
   hasPermission: (permission: string) => boolean;
   hasRole: (...roles: Role[]) => boolean;
   isAdmin: () => boolean;
   updateCashierPermissions: (perms: Partial<CashierPermissions>) => void;
+  checkSessionFreshness: () => boolean;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -34,50 +51,49 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       isAuthenticated: false,
       isLocked: false,
-      lockPin: '1234',
       cashierPermissions: DEFAULT_CASHIER_PERMISSIONS,
       lastActivity: Date.now(),
+      lastLoginAt: null,
 
+      /* ── Login via Laravel Sanctum ── */
       login: async (email: string, password: string) => {
         try {
           if (!email || !password) {
             return { success: false, error: 'Email dan password tidak boleh kosong' };
           }
 
-          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+          const baseUrl = getApiBaseUrl();
+          const res = await fetch(`${baseUrl}/login`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: JSON.stringify({ email, password }),
           });
 
-          if (authError) {
-            return { success: false, error: authError.message };
+          const json = await res.json();
+
+          if (!res.ok || !json.success) {
+            return { success: false, error: json.message || 'Email atau password salah' };
           }
 
-          // Fetch user profile from public.users table in database
-          const { data: userProfile, error: profileError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', email)
-            .single();
-
-          if (profileError || !userProfile) {
-            return { success: false, error: 'Profil pengguna tidak ditemukan di database' };
+          // Store the Sanctum token
+          if (typeof window !== 'undefined' && json.token) {
+            localStorage.setItem('sanctum_token', json.token);
           }
 
-          if (!userProfile.is_active) {
-            return { success: false, error: 'Akun Anda sedang dinonaktifkan' };
-          }
-
+          const userData = json.user;
           const user: User = {
-            id: Number(userProfile.id),
-            name: userProfile.name,
-            email: userProfile.email,
-            role: userProfile.role as Role,
-            branch_id: Number(userProfile.branch_id),
-            branch_name: userProfile.branch_name,
-            permissions: userProfile.permissions || [],
-            is_active: userProfile.is_active,
-            created_at: userProfile.created_at,
+            id: Number(userData.id),
+            name: userData.name,
+            email: userData.email,
+            role: userData.role as Role,
+            branch_id: Number(userData.branch_id),
+            branch_name: userData.branch_name,
+            permissions: userData.permissions || [],
+            is_active: userData.is_active,
+            created_at: userData.created_at || new Date().toISOString(),
           };
 
           set({
@@ -85,43 +101,117 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLocked: false,
             lastActivity: Date.now(),
+            lastLoginAt: Date.now(),
           });
           return { success: true };
         } catch (err: any) {
-          return { success: false, error: err.message || 'Gagal masuk ke akun' };
+          // Network error — API unreachable
+          const message = err.message?.includes('fetch')
+            ? 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.'
+            : err.message || 'Gagal masuk ke akun';
+          return { success: false, error: message };
         }
       },
 
+      /* ── Logout ── */
       logout: () => {
-        supabase.auth.signOut().catch(console.error);
+        // Call backend logout (fire-and-forget)
+        const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
+        if (token) {
+          const baseUrl = getApiBaseUrl();
+          fetch(`${baseUrl}/logout`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+            },
+          }).catch(() => {
+            // Ignore errors — we're logging out anyway
+          });
+        }
+
+        // Clear local state
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('sanctum_token');
+        }
         set({
           user: null,
           isAuthenticated: false,
           isLocked: false,
+          lastLoginAt: null,
         });
       },
 
+      /* ── Lock screen ── */
       lock: () => {
         set({ isLocked: true });
       },
 
-      unlock: (pin: string) => {
-        if (pin === get().lockPin) {
-          set({ isLocked: false, lastActivity: Date.now() });
-          return true;
+      /* ── Unlock via backend PIN verification ── */
+      unlock: async (pin: string) => {
+        try {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
+          if (!token) return false;
+
+          const baseUrl = getApiBaseUrl();
+          const res = await fetch(`${baseUrl}/unlock`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ pin }),
+          });
+
+          const json = await res.json();
+          if (res.ok && json.success) {
+            set({ isLocked: false, lastActivity: Date.now() });
+            return true;
+          }
+          return false;
+        } catch {
+          // Fallback: allow unlock with default PIN if server unreachable
+          // This prevents being locked out during network issues
+          if (pin === '1234') {
+            set({ isLocked: false, lastActivity: Date.now() });
+            return true;
+          }
+          return false;
         }
-        return false;
       },
 
-      verifyAdminPin: (pin: string) => {
-        // Default admin PIN: 0000
-        return pin === '0000';
+      /* ── Admin PIN verification via backend ── */
+      verifyAdminPin: async (pin: string) => {
+        try {
+          const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
+          if (!token) return false;
+
+          const baseUrl = getApiBaseUrl();
+          const res = await fetch(`${baseUrl}/verify-pin`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ pin }),
+          });
+
+          const json = await res.json();
+          return res.ok && json.success;
+        } catch {
+          // Fallback for offline scenarios
+          return pin === '0000';
+        }
       },
 
+      /* ── Activity tracking ── */
       updateLastActivity: () => {
         set({ lastActivity: Date.now() });
       },
 
+      /* ── Permission checks ── */
       hasPermission: (permission: string) => {
         const { user } = get();
         if (!user) return false;
@@ -141,10 +231,27 @@ export const useAuthStore = create<AuthStore>()(
         return ['super_admin', 'admin', 'manager'].includes(user.role);
       },
 
+      /* ── Cashier permissions ── */
       updateCashierPermissions: (perms: Partial<CashierPermissions>) => {
         set(state => ({
           cashierPermissions: { ...state.cashierPermissions, ...perms },
         }));
+      },
+
+      /* ── Session freshness check ── */
+      checkSessionFreshness: () => {
+        const { user, lastLoginAt, isAuthenticated } = get();
+        if (!isAuthenticated || !user || !lastLoginAt) return false;
+
+        const ttl = SESSION_TTL[user.role] || SESSION_TTL.cashier;
+        const elapsed = Date.now() - lastLoginAt;
+
+        if (elapsed > ttl) {
+          // Session expired — force logout
+          get().logout();
+          return false;
+        }
+        return true;
       },
     }),
     {
@@ -153,6 +260,7 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
         cashierPermissions: state.cashierPermissions,
+        lastLoginAt: state.lastLoginAt,
       }),
     }
   )

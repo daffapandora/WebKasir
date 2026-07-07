@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToTenant;
 
 class Transaction extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
-        'uuid', 'invoice_number', 'branch_id', 'branch_name', 'cashier_id', 'cashier_name',
+        'tenant_id', 'uuid', 'invoice_number', 'branch_id', 'branch_name', 'cashier_id', 'cashier_name',
         'customer_id', 'customer_name', 'subtotal', 'discount_amount', 'tax_amount',
         'service_charge', 'total', 'change_amount', 'status', 'voided_by', 'void_reason',
         'refunded_by', 'refund_reason', 'shift_id', 'completed_at_client', 'payments'

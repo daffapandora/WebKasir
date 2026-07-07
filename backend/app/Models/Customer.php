@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToTenant;
 
 class Customer extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
-        'name', 'phone', 'email', 'address', 'membership_tier',
+        'tenant_id', 'name', 'phone', 'email', 'address', 'membership_tier',
         'loyalty_points', 'total_spent', 'total_transactions', 'last_visit', 'is_active'
     ];
 

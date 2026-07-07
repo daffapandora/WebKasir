@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToTenant;
 
 class Supplier extends Model
 {
-    protected $fillable = ['name', 'contact_person', 'phone', 'email', 'address', 'is_active'];
+    use BelongsToTenant;
+
+    protected $fillable = ['tenant_id', 'name', 'contact_person', 'phone', 'email', 'address', 'is_active'];
 
     protected $casts = [
         'is_active' => 'boolean',

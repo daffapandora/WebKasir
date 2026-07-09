@@ -1,28 +1,23 @@
-/* ═══════════════════════════════════════════════════
-   Auth Store — Zustand + Laravel Sanctum
-   ═══════════════════════════════════════════════════ */
+/*
+  Auth Store - Zustand + Supabase Auth
+  =====================================
+  Uses Supabase Auth exclusively for login/logout.
+  After successful auth, fetches user profile from public.users.
+*/
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User, Role, CashierPermissions } from '@/types';
 import { DEFAULT_CASHIER_PERMISSIONS } from '@/lib/mock-data';
+import { createClient } from '@/utils/supabase/client';
 
-/* ── Session expiry durations (ms) ── */
+/* — Session expiry durations (ms) — */
 const SESSION_TTL: Record<string, number> = {
-  super_admin: 8 * 60 * 60 * 1000,  // 8 hours
+  super_admin: 8 * 60 * 60 * 1000, // 8 hours
   admin:       8 * 60 * 60 * 1000,
   manager:     8 * 60 * 60 * 1000,
-  cashier:    12 * 60 * 60 * 1000,  // 12 hours
+  cashier:    12 * 60 * 60 * 1000, // 12 hours
 };
-
-/* ── API base URL ── */
-function getApiBaseUrl(): string {
-  let base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
-  if (!base.endsWith('/api')) {
-    base = `${base.replace(/\/$/, '')}/api`;
-  }
-  return base;
-}
 
 interface AuthStore {
   user: User | null;
@@ -38,11 +33,10 @@ interface AuthStore {
   unlock: (pin: string) => Promise<boolean>;
   verifyAdminPin: (pin: string) => Promise<boolean>;
   updateLastActivity: () => void;
-  hasPermission: (permission: string) => boolean;
+  checkSessionExpiry: () => boolean;
   hasRole: (...roles: Role[]) => boolean;
   isAdmin: () => boolean;
-  updateCashierPermissions: (perms: Partial<CashierPermissions>) => void;
-  checkSessionFreshness: () => boolean;
+  checkAndRestoreSession: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -55,45 +49,57 @@ export const useAuthStore = create<AuthStore>()(
       lastActivity: Date.now(),
       lastLoginAt: null,
 
-      /* ── Login via Laravel Sanctum ── */
       login: async (email: string, password: string) => {
         try {
-          if (!email || !password) {
-            return { success: false, error: 'Email dan password tidak boleh kosong' };
-          }
+          const supabase = createClient();
 
-          const baseUrl = getApiBaseUrl();
-          const res = await fetch(`${baseUrl}/login`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: JSON.stringify({ email, password }),
+          // Sign in with Supabase Auth
+          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
           });
 
-          const json = await res.json();
-
-          if (!res.ok || !json.success) {
-            return { success: false, error: json.message || 'Email atau password salah' };
+          if (authError || !authData.user) {
+            return {
+              success: false,
+              error: authError?.message || 'Email atau password salah',
+            };
           }
 
-          // Store the Sanctum token
-          if (typeof window !== 'undefined' && json.token) {
-            localStorage.setItem('sanctum_token', json.token);
+          // Fetch user profile from public.users
+          const { data: profile, error: profileError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+          if (profileError || !profile) {
+            // Sign out since we couldn't get profile
+            await supabase.auth.signOut();
+            return {
+              success: false,
+              error: 'User profile tidak ditemukan',
+            };
           }
 
-          const userData = json.user;
+          if (!profile.is_active) {
+            await supabase.auth.signOut();
+            return {
+              success: false,
+              error: 'Akun tidak aktif. Hubungi administrator.',
+            };
+          }
+
           const user: User = {
-            id: Number(userData.id),
-            name: userData.name,
-            email: userData.email,
-            role: userData.role as Role,
-            branch_id: Number(userData.branch_id),
-            branch_name: userData.branch_name,
-            permissions: userData.permissions || [],
-            is_active: userData.is_active,
-            created_at: userData.created_at || new Date().toISOString(),
+            id: String(profile.id),
+            name: profile.name,
+            email: profile.email,
+            role: profile.role as Role,
+            branchId: profile.branch_id ? String(profile.branch_id) : undefined,
+            branchName: profile.branch_name || undefined,
+            permissions: profile.permissions || DEFAULT_CASHIER_PERMISSIONS,
+            isActive: profile.is_active,
+            lastLogin: new Date().toISOString(),
           };
 
           set({
@@ -102,121 +108,103 @@ export const useAuthStore = create<AuthStore>()(
             isLocked: false,
             lastActivity: Date.now(),
             lastLoginAt: Date.now(),
+            cashierPermissions:
+              user.role === 'cashier'
+                ? (profile.permissions as CashierPermissions) || DEFAULT_CASHIER_PERMISSIONS
+                : DEFAULT_CASHIER_PERMISSIONS,
           });
+
           return { success: true };
-        } catch (err: any) {
-          // Network error — API unreachable
-          const message = err.message?.includes('fetch')
-            ? 'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.'
-            : err.message || 'Gagal masuk ke akun';
-          return { success: false, error: message };
+        } catch (err) {
+          console.error('Login error:', err);
+          return {
+            success: false,
+            error: 'Terjadi kesalahan. Silakan coba lagi.',
+          };
         }
       },
 
-      /* ── Logout ── */
       logout: () => {
-        // Call backend logout (fire-and-forget)
-        const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
-        if (token) {
-          const baseUrl = getApiBaseUrl();
-          fetch(`${baseUrl}/logout`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json',
-            },
-          }).catch(() => {
-            // Ignore errors — we're logging out anyway
-          });
-        }
-
-        // Clear local state
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('sanctum_token');
-        }
+        const supabase = createClient();
+        supabase.auth.signOut();
         set({
           user: null,
           isAuthenticated: false,
           isLocked: false,
+          lastActivity: Date.now(),
           lastLoginAt: null,
+          cashierPermissions: DEFAULT_CASHIER_PERMISSIONS,
         });
       },
 
-      /* ── Lock screen ── */
       lock: () => {
         set({ isLocked: true });
       },
 
-      /* ── Unlock via backend PIN verification ── */
       unlock: async (pin: string) => {
+        const { user } = get();
+        if (!user) return false;
+
         try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
-          if (!token) return false;
+          const supabase = createClient();
+          const { data, error } = await supabase
+            .from('users')
+            .select('remember_token')
+            .eq('email', user.email)
+            .single();
 
-          const baseUrl = getApiBaseUrl();
-          const res = await fetch(`${baseUrl}/unlock`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({ pin }),
-          });
+          if (error || !data) return false;
 
-          const json = await res.json();
-          if (res.ok && json.success) {
+          // PIN stored as remember_token or use simple check
+          if (data.remember_token === pin) {
             set({ isLocked: false, lastActivity: Date.now() });
             return true;
           }
           return false;
         } catch {
-          // Fallback: allow unlock with default PIN if server unreachable
-          // This prevents being locked out during network issues
-          if (pin === '1234') {
-            set({ isLocked: false, lastActivity: Date.now() });
-            return true;
-          }
           return false;
         }
       },
 
-      /* ── Admin PIN verification via backend ── */
       verifyAdminPin: async (pin: string) => {
         try {
-          const token = typeof window !== 'undefined' ? localStorage.getItem('sanctum_token') : null;
-          if (!token) return false;
+          const supabase = createClient();
+          const { data, error } = await supabase
+            .from('users')
+            .select('remember_token, role')
+            .in('role', ['super_admin', 'admin', 'manager'])
+            .eq('remember_token', pin)
+            .limit(1);
 
-          const baseUrl = getApiBaseUrl();
-          const res = await fetch(`${baseUrl}/verify-pin`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({ pin }),
-          });
-
-          const json = await res.json();
-          return res.ok && json.success;
+          if (error || !data || data.length === 0) return false;
+          return true;
         } catch {
-          // Fallback for offline scenarios
-          return pin === '0000';
+          return false;
         }
       },
 
-      /* ── Activity tracking ── */
       updateLastActivity: () => {
         set({ lastActivity: Date.now() });
       },
 
-      /* ── Permission checks ── */
-      hasPermission: (permission: string) => {
-        const { user } = get();
-        if (!user) return false;
-        if (user.permissions.includes('*')) return true;
-        return user.permissions.includes(permission);
+      checkSessionExpiry: () => {
+        const { user, lastActivity, isAuthenticated } = get();
+        if (!isAuthenticated || !user) return false;
+
+        const ttl = SESSION_TTL[user.role] || SESSION_TTL.cashier;
+        const isExpired = Date.now() - lastActivity > ttl;
+
+        if (isExpired) {
+          const supabase = createClient();
+          supabase.auth.signOut();
+          set({
+            user: null,
+            isAuthenticated: false,
+            isLocked: false,
+          });
+        }
+
+        return isExpired;
       },
 
       hasRole: (...roles: Role[]) => {
@@ -231,41 +219,60 @@ export const useAuthStore = create<AuthStore>()(
         return ['super_admin', 'admin', 'manager'].includes(user.role);
       },
 
-      /* ── Cashier permissions ── */
-      updateCashierPermissions: (perms: Partial<CashierPermissions>) => {
-        set(state => ({
-          cashierPermissions: { ...state.cashierPermissions, ...perms },
-        }));
-      },
+      checkAndRestoreSession: async () => {
+        try {
+          const supabase = createClient();
+          const { data: { session } } = await supabase.auth.getSession();
 
-      /* ── Session freshness check ── */
-      checkSessionFreshness: () => {
-        const { user, lastLoginAt, isAuthenticated } = get();
-        if (!isAuthenticated) return true;
+          if (!session?.user) {
+            set({ user: null, isAuthenticated: false });
+            return;
+          }
 
-        if (!user || !lastLoginAt) {
-          // Inconsistent state — force clean logout to prevent infinite redirect loops
-          get().logout();
-          return false;
+          // Session exists - fetch profile
+          const { data: profile, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', session.user.email)
+            .single();
+
+          if (error || !profile || !profile.is_active) {
+            await supabase.auth.signOut();
+            set({ user: null, isAuthenticated: false });
+            return;
+          }
+
+          const user: User = {
+            id: String(profile.id),
+            name: profile.name,
+            email: profile.email,
+            role: profile.role as Role,
+            branchId: profile.branch_id ? String(profile.branch_id) : undefined,
+            branchName: profile.branch_name || undefined,
+            permissions: profile.permissions || DEFAULT_CASHIER_PERMISSIONS,
+            isActive: profile.is_active,
+            lastLogin: new Date().toISOString(),
+          };
+
+          set({
+            user,
+            isAuthenticated: true,
+            lastActivity: Date.now(),
+          });
+        } catch (err) {
+          console.error('Session restore error:', err);
+          set({ user: null, isAuthenticated: false });
         }
-
-        const ttl = SESSION_TTL[user.role] || SESSION_TTL.cashier;
-        const elapsed = Date.now() - lastLoginAt;
-
-        if (elapsed > ttl) {
-          // Session expired — force logout
-          get().logout();
-          return false;
-        }
-        return true;
       },
     }),
     {
-      name: 'pos-auth',
+      name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
+        isLocked: state.isLocked,
         cashierPermissions: state.cashierPermissions,
+        lastActivity: state.lastActivity,
         lastLoginAt: state.lastLoginAt,
       }),
     }

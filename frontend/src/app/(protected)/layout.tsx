@@ -7,12 +7,12 @@ import { LockScreen } from '@/components/shared/lock-screen';
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLocked, user, lastActivity, lock, cashierPermissions, updateLastActivity, checkSessionFreshness } = useAuthStore();
+  const { isAuthenticated, isLocked, user, lastActivity, cashierPermissions, updateLastActivity, lock, checkSessionExpiry } = useAuthStore();
 
-  // Check session freshness on mount
+  // Check session expiry on mount and redirect if expired
   useEffect(() => {
-    if (isAuthenticated && !checkSessionFreshness()) {
-      router.replace('/login');
+    if (isAuthenticated) {
+      checkSessionExpiry();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -47,11 +47,9 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
       window.removeEventListener('keydown', resetActivity);
       window.removeEventListener('touchstart', resetActivity);
     };
-  }, [isAuthenticated, lastActivity, cashierPermissions, lock, updateLastActivity]);
+  }, [isAuthenticated, cashierPermissions, lastActivity, lock, updateLastActivity]);
 
-  if (!isAuthenticated || !user) return null;
-
-  if (isLocked) {
+  if (isLocked && user) {
     return <LockScreen />;
   }
 

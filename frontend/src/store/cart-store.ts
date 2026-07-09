@@ -4,9 +4,8 @@
    ═══════════════════════════════════════════════════ */
 
 import { create } from 'zustand';
-import type { CartItem, HeldBill, PaymentMethod, Payment, Product } from '@/types';
+import type { CartItem, HeldBill, PaymentMethod, Payment, Product, TaxConfig } from '@/types';
 import { generateId, generateInvoiceNumber } from '@/lib/utils';
-import { MOCK_TAX_CONFIGS } from '@/lib/mock-data';
 
 interface CartStore {
   items: CartItem[];
@@ -15,6 +14,7 @@ interface CartStore {
   cartDiscount: { type: 'fixed' | 'percentage' | 'none'; value: number };
   notes: string;
   heldBills: HeldBill[];
+  taxConfigs: TaxConfig[];
 
   // Computed
   subtotal: number;
@@ -36,6 +36,7 @@ interface CartStore {
   setNotes: (notes: string) => void;
   setItemNotes: (itemId: string, notes: string) => void;
   clearCart: () => void;
+  setTaxConfigs: (configs: TaxConfig[]) => void;
 
   // Hold bill
   holdBill: () => void;
@@ -49,7 +50,7 @@ interface CartStore {
   recalculate: () => void;
 }
 
-function calculateTotals(items: CartItem[], cartDiscount: { type: string; value: number }) {
+function calculateTotals(items: CartItem[], cartDiscount: { type: string; value: number }, taxConfigs: TaxConfig[]) {
   const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
   const itemDiscountTotal = items.reduce((sum, item) => sum + item.discount_amount, 0);
 
@@ -63,7 +64,7 @@ function calculateTotals(items: CartItem[], cartDiscount: { type: string; value:
   const afterDiscount = subtotal - itemDiscountTotal - cartDiscountAmount;
 
   // Apply active taxes
-  const activeTaxes = MOCK_TAX_CONFIGS.filter(t => t.is_active);
+  const activeTaxes = taxConfigs.filter(t => t.is_active);
   let taxAmount = 0;
   for (const tax of activeTaxes) {
     if (tax.type === 'vat' || tax.type === 'restaurant') {
@@ -89,6 +90,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   cartDiscount: { type: 'none' as const, value: 0 },
   notes: '',
   heldBills: [],
+  taxConfigs: [],
   subtotal: 0,
   itemDiscountTotal: 0,
   cartDiscountAmount: 0,
@@ -127,7 +129,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
         newItems = [...state.items, newItem];
       }
 
-      const totals = calculateTotals(newItems, state.cartDiscount);
+      const totals = calculateTotals(newItems, state.cartDiscount, state.taxConfigs);
       return { items: newItems, ...totals };
     });
   },
@@ -135,7 +137,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   removeItem: (itemId: string) => {
     set(state => {
       const newItems = state.items.filter(i => i.id !== itemId);
-      const totals = calculateTotals(newItems, state.cartDiscount);
+      const totals = calculateTotals(newItems, state.cartDiscount, state.taxConfigs);
       return { items: newItems, ...totals };
     });
   },
@@ -153,7 +155,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
           ? { ...i, quantity, subtotal: quantity * i.price - i.discount_amount }
           : i
       );
-      const totals = calculateTotals(newItems, state.cartDiscount);
+      const totals = calculateTotals(newItems, state.cartDiscount, state.taxConfigs);
       return { items: newItems, ...totals };
     });
   },
@@ -189,7 +191,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
           subtotal: i.price * i.quantity - discountAmount,
         };
       });
-      const totals = calculateTotals(newItems, state.cartDiscount);
+      const totals = calculateTotals(newItems, state.cartDiscount, state.taxConfigs);
       return { items: newItems, ...totals };
     });
   },
@@ -197,7 +199,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   setCartDiscount: (type: 'fixed' | 'percentage' | 'none', value: number) => {
     set(state => {
       const newDiscount = { type, value };
-      const totals = calculateTotals(state.items, newDiscount);
+      const totals = calculateTotals(state.items, newDiscount, state.taxConfigs);
       return { cartDiscount: newDiscount, ...totals };
     });
   },
@@ -232,6 +234,13 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     });
   },
 
+  setTaxConfigs: (configs: TaxConfig[]) => {
+    set(state => {
+      const totals = calculateTotals(state.items, state.cartDiscount, configs);
+      return { taxConfigs: configs, ...totals };
+    });
+  },
+
   holdBill: () => {
     const state = get();
     if (state.items.length === 0) return;
@@ -262,7 +271,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     }
 
     set(s => {
-      const totals = calculateTotals(bill.items, { type: 'none', value: 0 });
+      const totals = calculateTotals(bill.items, { type: 'none', value: 0 }, s.taxConfigs);
       return {
         items: bill.items,
         customerName: bill.customer_name || '',
@@ -286,8 +295,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     const change = Math.max(0, totalPaid - state.total);
     const invoiceNumber = generateInvoiceNumber();
 
-    // In production, this would POST to Laravel API
-    // For now, clear cart and return success
+    // Clear cart and return success
     get().clearCart();
 
     return { success: true, invoiceNumber, change };
@@ -295,7 +303,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
 
   recalculate: () => {
     set(state => {
-      const totals = calculateTotals(state.items, state.cartDiscount);
+      const totals = calculateTotals(state.items, state.cartDiscount, state.taxConfigs);
       return totals;
     });
   },

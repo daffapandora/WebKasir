@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/ui-store';
 import { useIngredientStore } from '@/store/ingredient-store';
 import { getProducts, getCategories, getCurrentShift, openShift, closeShift } from '@/lib/firebase-service';
 import { formatCurrency, isBarcode, cn } from '@/lib/utils';
+import { apiClient } from '@/lib/api-client';
 import {
   Search, Pause, Receipt, Moon, Sun, Lock, LogOut, Store, History, Loader2, ArrowUpDown, X, Trash2, HelpCircle, Keyboard
 } from 'lucide-react';
@@ -67,9 +68,21 @@ export default function POSPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [prodList, catList] = await Promise.all([getProducts(), getCategories(), fetchIngredients()]);
+      const [prodList, catList, taxRes] = await Promise.all([
+        getProducts(),
+        getCategories(),
+        apiClient.get<{ success: boolean; data: any[] }>('/tax-configs').catch(e => {
+          console.error('Failed to load tax configs:', e);
+          return { success: false, data: [] };
+        }),
+        fetchIngredients()
+      ]);
       setProducts(prodList);
       setCategories(catList);
+
+      if (taxRes && taxRes.success) {
+        cart.setTaxConfigs(taxRes.data);
+      }
 
       // Check current open shift
       if (user) {

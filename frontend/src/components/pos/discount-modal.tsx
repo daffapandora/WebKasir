@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Tag, Percent } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Tag, Percent, Loader2 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
-import { MOCK_DISCOUNTS } from '@/lib/mock-data';
+import { apiClient } from '@/lib/api-client';
+import type { Discount } from '@/types';
 
 interface DiscountModalProps {
   onApply: (type: 'fixed' | 'percentage' | 'none', value: number) => void;
@@ -14,8 +15,19 @@ export function DiscountModal({ onApply, onClose }: DiscountModalProps) {
   const [mode, setMode] = useState<'preset' | 'custom'>('preset');
   const [type, setType] = useState<'fixed' | 'percentage'>('percentage');
   const [value, setValue] = useState('');
+  const [discounts, setDiscounts] = useState<Discount[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const activeDiscounts = MOCK_DISCOUNTS.filter(d => d.is_active);
+  useEffect(() => {
+    apiClient.get<{ success: boolean; data: Discount[] }>('/discounts')
+      .then(res => {
+        if (res.success) {
+          setDiscounts(res.data.filter(d => d.is_active));
+        }
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="modal-backdrop flex items-center justify-center p-4">
@@ -55,33 +67,40 @@ export function DiscountModal({ onApply, onClose }: DiscountModalProps) {
           </div>
 
           {mode === 'preset' ? (
-            <div className="space-y-2">
-              {activeDiscounts.map(d => (
-                <button
-                  key={d.id}
-                  onClick={() => onApply(d.type, d.value)}
-                  className="w-full card p-3 text-left hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm" style={{ color: 'var(--color-text-primary)' }}>{d.name}</p>
-                      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                        {d.code && <span className="font-mono mr-2">{d.code}</span>}
-                        {d.min_purchase && `Min. ${formatCurrency(d.min_purchase)}`}
-                      </p>
+            loading ? (
+              <div className="flex flex-col items-center justify-center p-8 gap-2">
+                <Loader2 className="w-6 h-6 animate-spin text-[var(--color-accent)]" />
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Memuat promo...</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {discounts.map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => onApply(d.type, d.value)}
+                    className="w-full card p-3 text-left hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm" style={{ color: 'var(--color-text-primary)' }}>{d.name}</p>
+                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                          {d.code && <span className="font-mono mr-2">{d.code}</span>}
+                          {d.min_purchase && `Min. ${formatCurrency(d.min_purchase)}`}
+                        </p>
+                      </div>
+                      <span className="text-lg font-bold" style={{ color: 'var(--color-accent)' }}>
+                        {d.type === 'percentage' ? `${d.value}%` : formatCurrency(d.value)}
+                      </span>
                     </div>
-                    <span className="text-lg font-bold" style={{ color: 'var(--color-accent)' }}>
-                      {d.type === 'percentage' ? `${d.value}%` : formatCurrency(d.value)}
-                    </span>
-                  </div>
-                </button>
-              ))}
-              {activeDiscounts.length === 0 && (
-                <p className="text-center py-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  Tidak ada promo aktif
-                </p>
-              )}
-            </div>
+                  </button>
+                ))}
+                {discounts.length === 0 && (
+                  <p className="text-center py-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    Tidak ada promo aktif
+                  </p>
+                )}
+              </div>
+            )
           ) : (
             <div className="space-y-3">
               <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--color-border)' }}>

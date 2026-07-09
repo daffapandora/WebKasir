@@ -4,19 +4,36 @@ import { useState, useEffect } from 'react';
 import { getPurchaseOrders, updatePOStatus } from '@/lib/firebase-service';
 import { formatCurrency, formatDate, cn, getStatusColor } from '@/lib/utils';
 import { useUIStore } from '@/store/ui-store';
-import { Truck, Plus, Search, Edit2, Eye, Package, FileText, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Truck, Plus, Edit2, FileText, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { ConfirmModal } from '@/components/shared/confirm-modal';
-import { MOCK_SUPPLIERS } from '@/lib/mock-data';
-import type { PurchaseOrder } from '@/types';
+import { apiClient } from '@/lib/api-client';
+import type { PurchaseOrder, Supplier } from '@/types';
 
 export default function SuppliersPage() {
   const { addToast } = useUIStore();
   const [tab, setTab] = useState<'suppliers' | 'orders'>('suppliers');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [poLoading, setPoLoading] = useState(false);
 
   // A9: PO status update confirmation
   const [confirmPO, setConfirmPO] = useState<{ po: PurchaseOrder; newStatus: PurchaseOrder['status'] } | null>(null);
+
+  const loadSuppliers = async () => {
+    setSuppliersLoading(true);
+    try {
+      const res = await apiClient.get<{ success: boolean; data: Supplier[] }>('/suppliers');
+      if (res.success) {
+        setSuppliers(res.data);
+      }
+    } catch (err) {
+      console.error(err);
+      addToast('error', 'Gagal memuat daftar supplier');
+    } finally {
+      setSuppliersLoading(false);
+    }
+  };
 
   const loadPOs = async () => {
     setPoLoading(true);
@@ -32,7 +49,11 @@ export default function SuppliersPage() {
   };
 
   useEffect(() => {
-    if (tab === 'orders') loadPOs();
+    if (tab === 'suppliers') {
+      loadSuppliers();
+    } else {
+      loadPOs();
+    }
   }, [tab]);
 
   // A9: Handle PO status update
@@ -76,26 +97,38 @@ export default function SuppliersPage() {
       </div>
 
       {tab === 'suppliers' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {MOCK_SUPPLIERS.map(s => (
-            <div key={s.id} className="card p-5">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--color-accent-light)' }}><Truck className="w-6 h-6" style={{ color: 'var(--color-accent)' }} /></div>
-                <div className="flex-1"><p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{s.name}</p><p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>CP: {s.contact_person}</p></div>
-                <span className={cn('badge', s.is_active ? 'badge-success' : 'badge-danger')}>{s.is_active ? 'Aktif' : 'Nonaktif'}</span>
+        suppliersLoading ? (
+          <div className="card p-12 flex flex-col items-center justify-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-accent)' }} />
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Memuat daftar supplier...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {suppliers.map(s => (
+              <div key={s.id} className="card p-5">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--color-accent-light)' }}><Truck className="w-6 h-6" style={{ color: 'var(--color-accent)' }} /></div>
+                  <div className="flex-1"><p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{s.name}</p><p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>CP: {s.contact_person}</p></div>
+                  <span className={cn('badge', s.is_active ? 'badge-success' : 'badge-danger')}>{s.is_active ? 'Aktif' : 'Nonaktif'}</span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span style={{ color: 'var(--color-text-muted)' }}>Telepon</span><span style={{ color: 'var(--color-text-primary)' }}>{s.phone}</span></div>
+                  {s.email && <div className="flex justify-between"><span style={{ color: 'var(--color-text-muted)' }}>Email</span><span className="text-xs" style={{ color: 'var(--color-text-primary)' }}>{s.email}</span></div>}
+                  {s.address && <p className="text-xs pt-2 border-t" style={{ color: 'var(--color-text-muted)', borderColor: 'var(--color-border-light)' }}>{s.address}</p>}
+                </div>
+                <div className="flex gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--color-border-light)' }}>
+                  <button className="btn btn-outline btn-sm flex-1"><Edit2 className="w-3.5 h-3.5" /> Edit</button>
+                  <button className="btn btn-primary btn-sm flex-1"><FileText className="w-3.5 h-3.5" /> Buat PO</button>
+                </div>
               </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span style={{ color: 'var(--color-text-muted)' }}>Telepon</span><span style={{ color: 'var(--color-text-primary)' }}>{s.phone}</span></div>
-                {s.email && <div className="flex justify-between"><span style={{ color: 'var(--color-text-muted)' }}>Email</span><span className="text-xs" style={{ color: 'var(--color-text-primary)' }}>{s.email}</span></div>}
-                {s.address && <p className="text-xs pt-2 border-t" style={{ color: 'var(--color-text-muted)', borderColor: 'var(--color-border-light)' }}>{s.address}</p>}
+            ))}
+            {suppliers.length === 0 && (
+              <div className="col-span-full card p-8 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                Belum ada data supplier.
               </div>
-              <div className="flex gap-2 mt-4 pt-3 border-t" style={{ borderColor: 'var(--color-border-light)' }}>
-                <button className="btn btn-outline btn-sm flex-1"><Edit2 className="w-3.5 h-3.5" /> Edit</button>
-                <button className="btn btn-primary btn-sm flex-1"><FileText className="w-3.5 h-3.5" /> Buat PO</button>
-              </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        )
       )}
 
       {tab === 'orders' && (
@@ -134,7 +167,7 @@ export default function SuppliersPage() {
                             className={cn('btn btn-sm', action.variant === 'primary' ? 'btn-primary' : action.variant === 'danger' ? 'btn-outline' : 'btn-outline')}
                             title={action.label}
                           >
-                            {action.status === 'received' ? <CheckCircle2 className="w-3.5 h-3.5" /> : action.status === 'cancelled' ? <XCircle className="w-3.5 h-3.5" style={{ color: 'var(--color-danger)' }} /> : <Package className="w-3.5 h-3.5" />}
+                            {action.status === 'received' ? <CheckCircle2 className="w-3.5 h-3.5" /> : action.status === 'cancelled' ? <XCircle className="w-3.5 h-3.5" style={{ color: 'var(--color-danger)' }} /> : <Truck className="w-3.5 h-3.5" />}
                           </button>
                         ))}
                         {getNextStatuses(po.status).length === 0 && (
@@ -144,6 +177,13 @@ export default function SuppliersPage() {
                     </td>
                   </tr>
                 ))}
+                {purchaseOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                      Belum ada Purchase Order.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}

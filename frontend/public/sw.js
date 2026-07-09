@@ -1,10 +1,7 @@
 // public/sw.js
-const CACHE_NAME = 'tokopos-cache-v1';
+const CACHE_NAME = 'tokopos-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
-  '/login',
-  '/pos',
-  '/admin/dashboard'
 ];
 
 // Install Service Worker
@@ -49,15 +46,50 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Network-First for HTML/navigation requests
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache the latest version for offline use if successful
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(event.request).then((cachedResponse) => {
+            return cachedResponse || caches.match('/');
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-First for static assets (images, icons, styles, fonts)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
-      return fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
+      return fetch(event.request).then((response) => {
+        // Cache static assets dynamically
+        if (response.status === 200 && (
+          url.pathname.endsWith('.css') || 
+          url.pathname.endsWith('.js') || 
+          url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|woff2)$/)
+        )) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
         }
+        return response;
+      }).catch(() => {
+        // dynamic offline fallback
       });
     })
   );

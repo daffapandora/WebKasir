@@ -44,7 +44,16 @@ export default function LoginPage() {
     setIsLoading(false);
   };
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--color-bg-primary)' }}>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'var(--color-accent)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>Memuat halaman masuk...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--color-bg-primary)' }}>

@@ -14,7 +14,11 @@ return new class extends Migration
     {
         // 1. Create tenants master table
         Schema::create('tenants', function (Blueprint $table) {
-            $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            if (DB::getDriverName() === 'sqlite') {
+                $table->uuid('id')->primary();
+            } else {
+                $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
+            }
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('plan')->default('basic'); // basic, pro, enterprise
@@ -69,8 +73,9 @@ return new class extends Migration
         }
 
         // 4. Create a default tenant and assign all existing data
+        $uuid = (string) \Illuminate\Support\Str::uuid();
         $defaultTenantId = DB::table('tenants')->insertGetId([
-            'id' => DB::raw('gen_random_uuid()'),
+            'id' => DB::getDriverName() === 'sqlite' ? $uuid : DB::raw('gen_random_uuid()'),
             'name' => 'Default Tenant',
             'slug' => 'default',
             'plan' => 'pro',

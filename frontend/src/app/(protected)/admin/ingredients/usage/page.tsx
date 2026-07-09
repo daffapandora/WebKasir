@@ -22,11 +22,11 @@ export default function IngredientUsageReportPage() {
   const [search, setSearch] = useState('');
 
   // Date range state: default to last 7 days
-  const [dateRange, setDateRange] = useState<DateRange>({
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({
     from: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
     to: new Date().toISOString().split('T')[0],
     label: '7 Hari Terakhir'
-  });
+  }));
 
   useEffect(() => {
     fetchIngredients();

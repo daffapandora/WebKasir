@@ -57,6 +57,12 @@ export default function POSPage() {
 
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const handleHoldBill = () => {
+    if (cart.items.length === 0) return;
+    cart.holdBill();
+    addToast('info', 'Transaksi ditahan', 'Bill disimpan sementara');
+  };
+
   // Fetch products and categories on mount
   const loadData = async () => {
     try {
@@ -198,11 +204,6 @@ export default function POSPage() {
     cart.addItem(product);
   };
 
-  const handleHoldBill = () => {
-    if (cart.items.length === 0) return;
-    cart.holdBill();
-    addToast('info', 'Transaksi ditahan', 'Bill disimpan sementara');
-  };
 
   const handlePaymentComplete = (invoiceNumber: string, change: number, total: number) => {
     setLastInvoice(invoiceNumber);

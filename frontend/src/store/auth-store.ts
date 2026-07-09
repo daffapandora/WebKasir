@@ -96,11 +96,11 @@ export const useAuthStore = create<AuthStore>()(
             name: profile.name,
             email: profile.email,
             role: profile.role as Role,
-            branchId: profile.branch_id ? String(profile.branch_id) : undefined,
-            branchName: profile.branch_name || undefined,
-            permissions: profile.permissions || DEFAULT_CASHIER_PERMISSIONS,
-            isActive: profile.is_active,
-            lastLogin: new Date().toISOString(),
+            branch_id: profile.branch_id,
+            branch_name: profile.branch_name || '',
+            permissions: (profile.permissions as string[]) || [],
+            is_active: profile.is_active,
+            created_at: new Date().toISOString(),
           };
 
           set({
@@ -248,11 +248,11 @@ export const useAuthStore = create<AuthStore>()(
             name: profile.name,
             email: profile.email,
             role: profile.role as Role,
-            branchId: profile.branch_id ? String(profile.branch_id) : undefined,
-            branchName: profile.branch_name || undefined,
-            permissions: profile.permissions || DEFAULT_CASHIER_PERMISSIONS,
-            isActive: profile.is_active,
-            lastLogin: new Date().toISOString(),
+            branch_id: profile.branch_id,
+            branch_name: profile.branch_name || '',
+            permissions: (profile.permissions as string[]) || [],
+            is_active: profile.is_active,
+            created_at: new Date().toISOString(),
           };
 
           set({

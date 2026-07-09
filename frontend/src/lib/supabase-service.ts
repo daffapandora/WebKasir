@@ -42,7 +42,21 @@ async function seedTableIfEmpty(tableName: string, mockData: any[]) {
 
   if (!error && count === 0) {
     console.log(`Seeding Supabase table: ${tableName}`);
-    const cleaned = mockData.map(item => JSON.parse(JSON.stringify(item)));
+    let cleaned = mockData.map(item => JSON.parse(JSON.stringify(item)));
+    
+    // Custom table-specific cleaning
+    if (tableName === 'users') {
+      cleaned = cleaned.map(user => ({
+        ...user,
+        password: user.password || '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi' // Default bcrypt hash for 'password'
+      }));
+    } else if (tableName === 'products') {
+      cleaned = cleaned.map(product => {
+        const { batches, ...rest } = product; // Remove batches relation field to prevent Postgres error
+        return rest;
+      });
+    }
+
     const { error: insertError } = await supabase.from(tableName).insert(cleaned);
     if (insertError) {
       console.error(`Error seeding ${tableName}:`, insertError);

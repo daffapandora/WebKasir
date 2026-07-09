@@ -24,8 +24,8 @@ export default function SuppliersPage() {
     setSuppliersLoading(true);
     try {
       const res = await apiClient.get<{ success: boolean; data: Supplier[] }>('/suppliers');
-      if (res.success) {
-        setSuppliers(res.data);
+      if (res.data.success) {
+        setSuppliers(res.data.data);
       }
     } catch (err) {
       console.error(err);

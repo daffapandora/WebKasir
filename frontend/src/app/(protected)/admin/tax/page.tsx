@@ -16,8 +16,8 @@ export default function TaxPage() {
   useEffect(() => {
     apiClient.get<{ success: boolean; data: TaxConfig[] }>('/tax-configs')
       .then(res => {
-        if (res.success) {
-          setConfigs(res.data);
+        if (res.data.success) {
+          setConfigs(res.data.data);
         }
       })
       .catch(err => {

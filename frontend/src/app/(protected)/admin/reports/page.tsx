@@ -65,14 +65,14 @@ export default function ReportsPage() {
         apiClient.get<{ success: boolean; data: HourlySales[] }>('/reports/hourly-sales')
       ]);
 
-      if (summaryRes.success) {
-        setSalesSummary(summaryRes.data);
+      if (summaryRes.data.success) {
+        setSalesSummary(summaryRes.data.data);
       }
-      if (topRes.success) {
-        setTopProducts(topRes.data);
+      if (topRes.data.success) {
+        setTopProducts(topRes.data.data);
       }
-      if (hourlyRes.success) {
-        setHourlySales(hourlyRes.data);
+      if (hourlyRes.data.success) {
+        setHourlySales(hourlyRes.data.data);
       }
     } catch (err) {
       console.error(err);

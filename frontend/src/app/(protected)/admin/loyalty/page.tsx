@@ -52,11 +52,11 @@ export default function LoyaltyPage() {
         apiClient.get<{ success: boolean; data: LoyaltyTransaction[] }>('/loyalty/ledger')
       ]);
 
-      if (configRes.success) {
-        setConfig(configRes.data);
+      if (configRes.data.success) {
+        setConfig(configRes.data.data);
       }
-      if (ledgerRes.success) {
-        setTransactions(ledgerRes.data);
+      if (ledgerRes.data.success) {
+        setTransactions(ledgerRes.data.data);
       }
     } catch (err) {
       console.error(err);
@@ -74,7 +74,7 @@ export default function LoyaltyPage() {
     setSaving(true);
     try {
       const res = await apiClient.post<{ success: boolean; message: string }>('/loyalty/config', config);
-      if (res.success) {
+      if (res.data.success) {
         addToast('success', 'Konfigurasi program loyalti berhasil disimpan');
       }
     } catch (err) {

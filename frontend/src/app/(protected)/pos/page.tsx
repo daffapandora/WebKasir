@@ -73,15 +73,15 @@ export default function POSPage() {
         getCategories(),
         apiClient.get<{ success: boolean; data: any[] }>('/tax-configs').catch(e => {
           console.error('Failed to load tax configs:', e);
-          return { success: false, data: [] };
+          return { data: { success: false, data: [] }, status: 500 };
         }),
         fetchIngredients()
       ]);
       setProducts(prodList);
       setCategories(catList);
 
-      if (taxRes && taxRes.success) {
-        cart.setTaxConfigs(taxRes.data);
+      if (taxRes && taxRes.data && taxRes.data.success) {
+        cart.setTaxConfigs(taxRes.data.data);
       }
 
       // Check current open shift

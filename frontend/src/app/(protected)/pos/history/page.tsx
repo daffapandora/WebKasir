@@ -17,8 +17,8 @@ export default function POSHistoryPage() {
   useEffect(() => {
     apiClient.get<{ success: boolean; data: Transaction[] }>('/pos/transactions/history')
       .then(res => {
-        if (res.success) {
-          setTransactions(res.data);
+        if (res.data.success) {
+          setTransactions(res.data.data);
         }
       })
       .catch(err => console.error(err))

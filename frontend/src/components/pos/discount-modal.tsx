@@ -21,8 +21,8 @@ export function DiscountModal({ onApply, onClose }: DiscountModalProps) {
   useEffect(() => {
     apiClient.get<{ success: boolean; data: Discount[] }>('/discounts')
       .then(res => {
-        if (res.success) {
-          setDiscounts(res.data.filter(d => d.is_active));
+        if (res.data.success) {
+          setDiscounts(res.data.data.filter((d: Discount) => d.is_active));
         }
       })
       .catch(err => console.error(err))

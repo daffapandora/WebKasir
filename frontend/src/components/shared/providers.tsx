@@ -13,6 +13,38 @@ export function Providers({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  // A10: Automatically handle ChunkLoadErrors by reloading the page
+  useEffect(() => {
+    const handleChunkError = (e: ErrorEvent | PromiseRejectionEvent) => {
+      const error = 'reason' in e ? e.reason : e.error;
+      const errorMessage = error?.message || error?.toString() || '';
+      
+      if (
+        errorMessage.includes('ChunkLoadError') || 
+        errorMessage.includes('Loading chunk') || 
+        errorMessage.includes('Failed to fetch') ||
+        (error && error.name === 'ChunkLoadError')
+      ) {
+        const lastReload = sessionStorage.getItem('last_chunk_error_reload');
+        const now = Date.now();
+        
+        if (!lastReload || now - parseInt(lastReload) > 5000) {
+          sessionStorage.setItem('last_chunk_error_reload', now.toString());
+          console.warn('ChunkLoadError detected, reloading...');
+          window.location.reload();
+        }
+      }
+    };
+
+    window.addEventListener('error', handleChunkError);
+    window.addEventListener('unhandledrejection', handleChunkError);
+
+    return () => {
+      window.removeEventListener('error', handleChunkError);
+      window.removeEventListener('unhandledrejection', handleChunkError);
+    };
+  }, []);
+
   useEffect(() => {
     // Seed initial data to Supabase if database tables are empty
     seedInitialData().catch(err => {

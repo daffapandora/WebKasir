@@ -24,6 +24,23 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Unhandled runtime error captured by TokoPOS boundary:', error, errorInfo);
+    
+    // Automatically reload on ChunkLoadError
+    if (
+      error?.name === 'ChunkLoadError' || 
+      error?.message?.includes('ChunkLoadError') || 
+      error?.message?.includes('Loading chunk') ||
+      error?.message?.includes('Failed to fetch')
+    ) {
+      const lastReload = sessionStorage.getItem('last_chunk_error_reload');
+      const now = Date.now();
+      
+      if (!lastReload || now - parseInt(lastReload) > 5000) {
+        sessionStorage.setItem('last_chunk_error_reload', now.toString());
+        console.warn('ChunkLoadError caught by boundary, reloading...');
+        window.location.reload();
+      }
+    }
   }
 
   private handleReset = () => {

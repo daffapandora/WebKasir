@@ -241,7 +241,13 @@ export const useAuthStore = create<AuthStore>()(
       /* ── Session freshness check ── */
       checkSessionFreshness: () => {
         const { user, lastLoginAt, isAuthenticated } = get();
-        if (!isAuthenticated || !user || !lastLoginAt) return false;
+        if (!isAuthenticated) return true;
+
+        if (!user || !lastLoginAt) {
+          // Inconsistent state — force clean logout to prevent infinite redirect loops
+          get().logout();
+          return false;
+        }
 
         const ttl = SESSION_TTL[user.role] || SESSION_TTL.cashier;
         const elapsed = Date.now() - lastLoginAt;

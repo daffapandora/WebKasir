@@ -8,6 +8,7 @@
  * - 401 auto-logout interceptor
  * - Consistent error handling
  */
+import { useAuthStore } from '@/store/auth-store';
 
 /* ── Config ── */
 let baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
@@ -27,8 +28,14 @@ function getToken(): string | null {
 
 function clearAuthState(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('sanctum_token');
-  localStorage.removeItem('pos-auth');
+  
+  try {
+    useAuthStore.getState().logout();
+  } catch (e) {
+    localStorage.removeItem('sanctum_token');
+    localStorage.removeItem('pos-auth');
+  }
+
   // Redirect to login
   if (window.location.pathname !== '/login') {
     window.location.href = '/login';

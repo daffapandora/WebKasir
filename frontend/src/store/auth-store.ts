@@ -37,6 +37,7 @@ interface AuthStore {
   hasRole: (...roles: Role[]) => boolean;
   isAdmin: () => boolean;
   checkAndRestoreSession: () => Promise<void>;
+    updateCashierPermissions: (permissions: CashierPermissions) => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -264,6 +265,9 @@ export const useAuthStore = create<AuthStore>()(
           set({ user: null, isAuthenticated: false });
         }
       },
+          updateCashierPermissions: (permissions: CashierPermissions) => {
+                  set({ cashierPermissions: permissions });
+                },
     }),
     {
       name: 'auth-storage',

@@ -5,6 +5,8 @@ import { useUIStore } from '@/store/ui-store';
 import { ToastContainer } from '@/components/ui/toast';
 import { AdminPinModal } from '@/components/shared/admin-pin-modal';
 import { seedInitialData } from '@/lib/firebase-service';
+import { createClient } from '@/utils/supabase/client';
+import { useAuthStore } from '@/store/auth-store';
 
 export function Providers({ children }: { children: ReactNode }) {
   const theme = useUIStore(s => s.theme);
@@ -12,6 +14,20 @@ export function Providers({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  // Synchronize Zustand auth state with Supabase session invalidation (sign-out or expiry)
+  useEffect(() => {
+    const supabase = createClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        useAuthStore.getState().logout();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // A10: Automatically handle ChunkLoadErrors by reloading the page
   useEffect(() => {

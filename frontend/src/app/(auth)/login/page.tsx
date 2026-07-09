@@ -29,13 +29,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'cashier') {
-        router.replace('/pos');
-      } else {
-        router.replace('/admin/dashboard');
-      }
+      window.location.href = user.role === 'cashier' ? '/pos' : '/admin/dashboard';
     }
-  }, [isAuthenticated, user, router]);
+  }, [isAuthenticated, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

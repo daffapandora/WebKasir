@@ -67,6 +67,15 @@ export const useAuthStore = create<AuthStore>()(
             };
           }
 
+          // Verify session exists and is active
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            return {
+              success: false,
+              error: 'Sesi gagal dibuat. Silakan coba masuk kembali.',
+            };
+          }
+
           // Fetch user profile from public.users
           const { data: profile, error: profileError } = await supabase
             .from('users')

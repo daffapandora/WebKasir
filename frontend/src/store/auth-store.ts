@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user: User = {
-            id: String(profile.id),
+            id: Number(profile.id),
             name: profile.name,
             email: profile.email,
             role: profile.role as Role,
@@ -244,7 +244,7 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           const user: User = {
-            id: String(profile.id),
+            id: Number(profile.id),
             name: profile.name,
             email: profile.email,
             role: profile.role as Role,

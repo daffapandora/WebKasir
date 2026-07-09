@@ -1,27 +1,49 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { LockScreen } from '@/components/shared/lock-screen';
 
 export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { isAuthenticated, isLocked, user, lastActivity, cashierPermissions, updateLastActivity, lock, checkSessionExpiry } = useAuthStore();
+  const { 
+    isAuthenticated, 
+    isLocked, 
+    user, 
+    lastActivity, 
+    cashierPermissions, 
+    updateLastActivity, 
+    lock, 
+    checkSessionExpiry,
+    checkAndRestoreSession
+  } = useAuthStore();
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Check session expiry on mount and redirect if expired
+  // Sync with Zustand hydration state
+  useEffect(() => {
+    if (useAuthStore.persist.hasHydrated()) {
+      setIsHydrated(true);
+    }
+    const unsub = useAuthStore.persist.onFinishHydration(() => setIsHydrated(true));
+    return () => unsub();
+  }, []);
+
+  // Check session expiry on mount and redirect if expired, or restore session from cookies if not authenticated in Zustand
   useEffect(() => {
     if (isAuthenticated) {
       checkSessionExpiry();
+    } else {
+      checkAndRestoreSession();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, checkSessionExpiry, checkAndRestoreSession]);
 
-  // Redirect if not authenticated
+  // Redirect if not authenticated (only after store is hydrated)
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isHydrated && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isHydrated, isAuthenticated, router]);
 
   // Idle timeout
   useEffect(() => {

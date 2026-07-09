@@ -8,7 +8,7 @@ import { Eye, EyeOff, Loader2, Monitor, Moon, Sun, Store } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, user } = useAuthStore();
+  const { login, isAuthenticated, user, checkAndRestoreSession } = useAuthStore();
   const { theme, toggleTheme, addToast } = useUIStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +17,15 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const init = async () => {
+      if (!isAuthenticated) {
+        await checkAndRestoreSession();
+      }
+      setMounted(true);
+    };
+    init();
+  }, [isAuthenticated, checkAndRestoreSession]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
